@@ -4,6 +4,7 @@ from typing import Optional, Union
 
 import numpy as np
 
+from aeon.clustering.averaging._ba_holdit import holdit_barycenter_average
 from aeon.clustering.averaging._ba_petitjean import petitjean_barycenter_average
 from aeon.clustering.averaging._ba_subgradient import subgradient_barycenter_average
 
@@ -21,6 +22,7 @@ def elastic_barycenter_average(
     precomputed_medoids_pairwise_distance: Optional[np.ndarray] = None,
     verbose: bool = False,
     random_state: Optional[int] = None,
+    holdit_num_ts_to_use_percentage: float = 0.5,
     **kwargs,
 ) -> np.ndarray:
     """Compute the barycenter average of time series using a elastic distance.
@@ -126,6 +128,22 @@ def elastic_barycenter_average(
             precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
             verbose=verbose,
             random_state=random_state,
+            **kwargs,
+        )
+    elif method == "holdit":
+        return holdit_barycenter_average(
+            X,
+            distance=distance,
+            max_iters=max_iters,
+            tol=tol,
+            init_barycenter=init_barycenter,
+            initial_step_size=initial_step_size,
+            final_step_size=final_step_size,
+            weights=weights,
+            precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
+            verbose=verbose,
+            random_state=random_state,
+            num_ts_to_use_percentage=holdit_num_ts_to_use_percentage,
             **kwargs,
         )
     else:

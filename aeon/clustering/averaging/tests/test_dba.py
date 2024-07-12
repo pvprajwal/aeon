@@ -218,10 +218,16 @@ def test_elastic_dba_variations(distance):
         X_train, distance=distance, window=0.2, independent=False, method="subgradient"
     )
 
+    holdit_ts = elastic_barycenter_average(
+        X_train, distance=distance, window=0.2, independent=False, method="holdit"
+    )
+
     assert isinstance(average_ts, np.ndarray)
     assert isinstance(subgradient_ts, np.ndarray)
+    assert isinstance(holdit_ts, np.ndarray)
     assert average_ts.shape == X_train[0].shape
     assert subgradient_ts.shape == X_train[0].shape
+    assert holdit_ts.shape == X_train[0].shape
 
 
 @pytest.mark.parametrize(
