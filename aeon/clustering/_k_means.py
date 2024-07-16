@@ -257,13 +257,20 @@ class TimeSeriesKMeans(BaseClusterer):
                 break
 
             # Compute new cluster centres
+            num_iterations_ssg = []
             for j in range(self.n_clusters):
-                cluster_centres[j] = self._averaging_method(
+                cluster_centres[j], num_iterations_ssg = self._averaging_method(
                     X[curr_labels == j], **self._average_params
                 )
+                num_iterations_ssg.append(num_iterations_ssg)
 
             if self.verbose is True:
-                print(f"Iteration {i}, inertia {prev_inertia}.")  # noqa: T001, T201
+                print(
+                    f"++++++++++++++++++ Iteration {i} ++++++++++++++++++"
+                )  # noqa: T001
+                print(
+                    f"Number of iterations for each cluster: {num_iterations_ssg}"
+                )  # noqa: T001
 
         return prev_labels, cluster_centres, prev_inertia, i + 1
 

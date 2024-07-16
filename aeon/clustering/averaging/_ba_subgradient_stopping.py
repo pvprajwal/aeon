@@ -158,7 +158,7 @@ def subgradient_proper_stop_barycenter_average(
 
         if verbose:
             print(f"[DBA] epoch {i}, cost {cost}")  # noqa: T001, T201
-    return barycenter
+    return barycenter, i
 
 
 @njit(cache=True, fastmath=True)
