@@ -259,10 +259,10 @@ class TimeSeriesKMeans(BaseClusterer):
             # Compute new cluster centres
             num_iterations_ssg = []
             for j in range(self.n_clusters):
-                cluster_centres[j], num_iterations_ssg = self._averaging_method(
+                cluster_centres[j], curr_iterations = self._averaging_method(
                     X[curr_labels == j], **self._average_params
                 )
-                num_iterations_ssg.append(num_iterations_ssg)
+                num_iterations_ssg.append(curr_iterations)
 
             if self.verbose is True:
                 print(
