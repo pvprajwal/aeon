@@ -7,6 +7,15 @@ import numpy as np
 from aeon.clustering.averaging._ba_holdit import holdit_barycenter_average
 from aeon.clustering.averaging._ba_petitjean import petitjean_barycenter_average
 from aeon.clustering.averaging._ba_subgradient import subgradient_barycenter_average
+from aeon.clustering.averaging._ba_subgradient_stopping import (
+    subgradient_proper_stop_barycenter_average,
+)
+from aeon.clustering.averaging._ba_subgradient_stopping_approx import (
+    subgradient_approximation_stop_barycenter_average,
+)
+from aeon.clustering.averaging._ba_subgradient_stopping_avg_change import (
+    subgradient_avg_change_stop_barycenter_average,
+)
 
 
 def elastic_barycenter_average(
@@ -146,6 +155,58 @@ def elastic_barycenter_average(
             num_ts_to_use_percentage=holdit_num_ts_to_use_percentage,
             **kwargs,
         )
+    elif method == "holdit_stopping":
+        # This adds a proper check to the stopping condition
+        return subgradient_proper_stop_barycenter_average(
+            X,
+            distance=distance,
+            max_iters=max_iters,
+            tol=tol,
+            init_barycenter=init_barycenter,
+            initial_step_size=initial_step_size,
+            final_step_size=final_step_size,
+            weights=weights,
+            precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
+            verbose=verbose,
+            random_state=random_state,
+            num_ts_to_use_percentage=holdit_num_ts_to_use_percentage,
+            **kwargs,
+        )
+    elif method == "holdit_stopping_approx":
+        # This adds a approximation to the stopping condition
+        return subgradient_approximation_stop_barycenter_average(
+            X,
+            distance=distance,
+            max_iters=max_iters,
+            tol=tol,
+            init_barycenter=init_barycenter,
+            initial_step_size=initial_step_size,
+            final_step_size=final_step_size,
+            weights=weights,
+            precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
+            verbose=verbose,
+            random_state=random_state,
+            num_ts_to_use_percentage=holdit_num_ts_to_use_percentage,
+            **kwargs,
+        )
+    elif method == "holdit_stopping_avg_change":
+        # This adds a approximation to the stopping condition
+        return subgradient_avg_change_stop_barycenter_average(
+            X,
+            distance=distance,
+            max_iters=max_iters,
+            tol=tol,
+            init_barycenter=init_barycenter,
+            initial_step_size=initial_step_size,
+            final_step_size=final_step_size,
+            weights=weights,
+            precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
+            verbose=verbose,
+            random_state=random_state,
+            num_ts_to_use_percentage=holdit_num_ts_to_use_percentage,
+            **kwargs,
+        )
+
     else:
         raise ValueError(
             f"Invalid method: {method}. Please use one of the following: "

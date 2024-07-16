@@ -8,9 +8,10 @@ from aeon.clustering.averaging._ba_utils import (
     _get_alignment_path,
     _get_init_barycenter,
 )
+from aeon.distances import distance as distance_callable
 
 
-def subgradient_barycenter_average(
+def subgradient_avg_change_stop_barycenter_average(
     X: np.ndarray,
     distance: str = "dtw",
     max_iters: int = 30,
@@ -22,6 +23,7 @@ def subgradient_barycenter_average(
     precomputed_medoids_pairwise_distance: Optional[np.ndarray] = None,
     verbose: bool = False,
     random_state: Optional[int] = None,
+    num_ts_to_use_percentage: float = 1.0,
     **kwargs,
 ) -> np.ndarray:
     """Compute the stochastic subgradient barycenter average of time series.
@@ -112,19 +114,21 @@ def subgradient_barycenter_average(
     random_state = check_random_state(random_state)
 
     cost_prev = np.inf
+    prev_avg = np.zeros_like(barycenter)
     if distance == "wdtw" or distance == "wddtw":
         if "g" not in kwargs:
             kwargs["g"] = 0.05
 
     current_step_size = initial_step_size
     X_size = _X.shape[0]
+    num_ts_to_use = min(X_size, max(10, int(num_ts_to_use_percentage * X_size)))
     # Loop up to 30 times
     for i in range(max_iters):
         # Randomly order the dataset
-        shuffled_indices = random_state.permutation(X_size)
+        shuffled_indices = random_state.permutation(X_size)[:num_ts_to_use]
         # It then warps all onto centre to get the Fretchet distance
         # Updating the barycenter every iteration based on the warping
-        barycenter, cost, current_step_size = _ba_one_iter_subgradient(
+        barycenter, cost_old, current_step_size = _ba_one_iter_subgradient(
             barycenter,
             _X,
             shuffled_indices,
@@ -136,13 +140,16 @@ def subgradient_barycenter_average(
             i,
             **kwargs,
         )
+
+        cost = distance_callable(barycenter, prev_avg, metric="euclidean")
         # Cost is the sum of distance to the centre
-        if abs(cost_prev - cost) < tol:
-            break
-        elif cost_prev < cost:
-            break
-        else:
-            cost_prev = cost
+        if cost_prev != np.inf:
+            if abs(cost_prev - cost) < tol:
+                break
+            elif cost_prev < cost:
+                break
+        cost_prev = cost
+        prev_avg = barycenter
 
         if verbose:
             print(f"[DBA] epoch {i}, cost {cost}")  # noqa: T001, T201
@@ -174,7 +181,6 @@ def _ba_one_iter_subgradient(
     transformed_x: Optional[np.ndarray] = None,
     transformed_y: Optional[np.ndarray] = None,
 ):
-
     X_size, X_dims, X_timepoints = X.shape
     cost = 0.0
     # Only update current_step_size on the first iteration
@@ -212,5 +218,23 @@ def _ba_one_iter_subgradient(
         barycenter_copy -= (2.0 * current_step_size) * new_ba * weights[i]
 
         current_step_size -= step_size_reduction
-        cost = curr_cost * weights[i]
+        cost += curr_cost * weights[i]
     return barycenter_copy, cost, current_step_size
+
+
+if __name__ == "__main__":
+    from aeon.clustering.averaging import elastic_barycenter_average
+    from aeon.testing.data_generation import make_example_3d_numpy
+
+    X_train = make_example_3d_numpy(20, 2, 10, random_state=1, return_y=False)
+    distance = "dtw"
+
+    holdit_ts = elastic_barycenter_average(
+        X_train,
+        distance=distance,
+        window=0.2,
+        independent=False,
+        method="holdit_stopping_avg_change",
+        holdit_num_ts_to_use_percentage=0.8,
+    )
+    stop = ""

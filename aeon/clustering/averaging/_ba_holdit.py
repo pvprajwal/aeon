@@ -209,21 +209,27 @@ def _ba_one_iter_subgradient(
 
 
 if __name__ == "__main__":
-    from aeon.clustering.averaging import elastic_barycenter_average
-    from aeon.testing.data_generation import make_example_3d_numpy
+    from tslearn.barycenters import dtw_barycenter_averaging_subgradient
 
-    X_train = make_example_3d_numpy(4, 2, 10, random_state=1, return_y=False)
-    distance = "dtw"
+    from aeon.testing.data_generation import make_example_2d_numpy_series
 
-    average_ts = elastic_barycenter_average(
-        X_train, distance=distance, window=0.2, independent=False
-    )
-
-    subgradient_ts = elastic_barycenter_average(
-        X_train, distance=distance, window=0.2, independent=False, method="subgradient"
-    )
-
-    holdit_ts = elastic_barycenter_average(
-        X_train, distance=distance, window=0.2, independent=False, method="holdit"
-    )
+    X_train = make_example_2d_numpy_series(10, 20, random_state=1)
+    dtw_barycenter_averaging_subgradient(X_train, max_iter=30, tol=1e-5)
     stop = ""
+
+    # X_train = make_example_3d_numpy(4, 2, 10, random_state=1, return_y=False)
+    # distance = "dtw"
+
+    # average_ts = elastic_barycenter_average(
+    #     X_train, distance=distance, window=0.2, independent=False
+    # )
+    #
+    # subgradient_ts = elastic_barycenter_average(
+    #     X_train, distance=distance, window=0.2, independent=False,
+    #     method="subgradient"
+    # )
+    #
+    # holdit_ts = elastic_barycenter_average(
+    #     X_train, distance=distance, window=0.2, independent=False, method="holdit"
+    # )
+    # stop = ""

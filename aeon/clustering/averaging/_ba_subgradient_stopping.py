@@ -8,9 +8,10 @@ from aeon.clustering.averaging._ba_utils import (
     _get_alignment_path,
     _get_init_barycenter,
 )
+from aeon.distances import distance as distance_callable
 
 
-def subgradient_barycenter_average(
+def subgradient_proper_stop_barycenter_average(
     X: np.ndarray,
     distance: str = "dtw",
     max_iters: int = 30,
@@ -22,6 +23,7 @@ def subgradient_barycenter_average(
     precomputed_medoids_pairwise_distance: Optional[np.ndarray] = None,
     verbose: bool = False,
     random_state: Optional[int] = None,
+    num_ts_to_use_percentage: float = 1.0,
     **kwargs,
 ) -> np.ndarray:
     """Compute the stochastic subgradient barycenter average of time series.
@@ -118,13 +120,14 @@ def subgradient_barycenter_average(
 
     current_step_size = initial_step_size
     X_size = _X.shape[0]
+    num_ts_to_use = min(X_size, max(10, int(num_ts_to_use_percentage * X_size)))
     # Loop up to 30 times
     for i in range(max_iters):
         # Randomly order the dataset
-        shuffled_indices = random_state.permutation(X_size)
+        shuffled_indices = random_state.permutation(X_size)[:num_ts_to_use]
         # It then warps all onto centre to get the Fretchet distance
         # Updating the barycenter every iteration based on the warping
-        barycenter, cost, current_step_size = _ba_one_iter_subgradient(
+        barycenter, old_cost, current_step_size = _ba_one_iter_subgradient(
             barycenter,
             _X,
             shuffled_indices,
@@ -136,6 +139,15 @@ def subgradient_barycenter_average(
             i,
             **kwargs,
         )
+
+        cost = 0
+        for j in range(X_size):
+            cost += distance_callable(
+                barycenter,
+                _X[j],
+                metric=distance,
+                **kwargs,
+            )
         # Cost is the sum of distance to the centre
         if abs(cost_prev - cost) < tol:
             break
@@ -214,3 +226,21 @@ def _ba_one_iter_subgradient(
         current_step_size -= step_size_reduction
         cost = curr_cost * weights[i]
     return barycenter_copy, cost, current_step_size
+
+
+if __name__ == "__main__":
+    from aeon.clustering.averaging import elastic_barycenter_average
+    from aeon.testing.data_generation import make_example_3d_numpy
+
+    X_train = make_example_3d_numpy(20, 2, 10, random_state=1, return_y=False)
+    distance = "dtw"
+
+    holdit_ts = elastic_barycenter_average(
+        X_train,
+        distance=distance,
+        window=0.2,
+        independent=False,
+        method="holdit_stopping",
+        holdit_num_ts_to_use_percentage=0.8,
+    )
+    stop = ""
