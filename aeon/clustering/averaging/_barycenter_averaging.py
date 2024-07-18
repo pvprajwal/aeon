@@ -21,7 +21,7 @@ from aeon.clustering.averaging._ba_subgradient_stopping_avg_change import (
 def elastic_barycenter_average(
     X: np.ndarray,
     distance: str = "dtw",
-    max_iters: int = 30,
+    max_iters: int = 50,
     tol: float = 1e-5,
     init_barycenter: Union[np.ndarray, str] = "mean",
     method: str = "petitjean",

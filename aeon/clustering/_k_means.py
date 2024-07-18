@@ -259,18 +259,23 @@ class TimeSeriesKMeans(BaseClusterer):
             # Compute new cluster centres
             num_iterations_ssg = []
             for j in range(self.n_clusters):
-                cluster_centres[j], curr_iterations = self._averaging_method(
+                new_average = self._averaging_method(
                     X[curr_labels == j], **self._average_params
                 )
-                num_iterations_ssg.append(curr_iterations)
+                if isinstance(new_average, tuple):
+                    cluster_centres[j] = new_average[0]
+                    num_iterations_ssg.append(new_average[1])
+                else:
+                    cluster_centres[j] = new_average
 
             if self.verbose is True:
                 print(
                     f"++++++++++++++++++ Iteration {i} ++++++++++++++++++"
                 )  # noqa: T001
-                print(
-                    f"Number of iterations for each cluster: {num_iterations_ssg}"
-                )  # noqa: T001
+                if len(num_iterations_ssg) > 0:
+                    print(
+                        f"Number of iterations for each cluster: {num_iterations_ssg}"
+                    )  # noqa: T001
 
         return prev_labels, cluster_centres, prev_inertia, i + 1
 
