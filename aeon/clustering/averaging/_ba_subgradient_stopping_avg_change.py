@@ -141,7 +141,7 @@ def subgradient_avg_change_stop_barycenter_average(
             **kwargs,
         )
 
-        cost = distance_callable(barycenter, prev_avg, metric="euclidean")
+        cost = distance_callable(barycenter, prev_avg, metric=distance, **kwargs)
         # Cost is the sum of distance to the centre
         if cost_prev != np.inf:
             if abs(cost_prev - cost) < tol:

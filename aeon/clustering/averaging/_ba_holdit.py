@@ -114,6 +114,7 @@ def holdit_barycenter_average(
     X_size = _X.shape[0]
 
     num_ts_to_use = min(X_size, max(10, int(num_ts_to_use_percentage * X_size)))
+    prev_barycenter = np.copy(barycenter)
 
     for i in range(max_iters):
         shuffled_indices = random_state.permutation(X_size)[:num_ts_to_use]
@@ -130,10 +131,13 @@ def holdit_barycenter_average(
             **kwargs,
         )
         if abs(cost_prev - cost) < tol:
+            barycenter = prev_barycenter
             break
         elif cost_prev < cost:
+            barycenter = prev_barycenter
             break
         else:
+            prev_barycenter = barycenter
             cost_prev = cost
 
         if verbose:

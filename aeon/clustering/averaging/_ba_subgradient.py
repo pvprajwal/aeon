@@ -118,6 +118,7 @@ def subgradient_barycenter_average(
 
     current_step_size = initial_step_size
     X_size = _X.shape[0]
+    prev_barycenter = np.copy(barycenter)
     # Loop up to 30 times
     for i in range(max_iters):
         # Randomly order the dataset
@@ -138,10 +139,13 @@ def subgradient_barycenter_average(
         )
         # Cost is the sum of distance to the centre
         if abs(cost_prev - cost) < tol:
+            barycenter = prev_barycenter
             break
         elif cost_prev < cost:
+            barycenter = prev_barycenter
             break
         else:
+            prev_barycenter = barycenter
             cost_prev = cost
 
         if verbose:
