@@ -64,7 +64,8 @@ def _set_experimental_clusterer(
             **average_params,
             "holdit_num_ts_to_use_percentage": size / 100,
         }
-    return TimeSeriesKMeans(
+    from aeon.clustering._holdit_k_means import HoldItKmeans
+    return HoldItKmeans(
         n_clusters=n_clusters,
         max_iter=50,
         n_init=10,
@@ -72,11 +73,25 @@ def _set_experimental_clusterer(
         distance=distance,
         distance_params=distance_params,
         random_state=random_state,
-        averaging_method="mean",
+        averaging_method="ba",
         average_params=average_params,
         verbose=True,
         **kwargs,
     )
+
+    # return TimeSeriesKMeans(
+    #     n_clusters=n_clusters,
+    #     max_iter=50,
+    #     n_init=10,
+    #     init_algorithm="random",
+    #     distance=distance,
+    #     distance_params=distance_params,
+    #     random_state=random_state,
+    #     averaging_method="mean",
+    #     average_params=average_params,
+    #     verbose=True,
+    #     **kwargs,
+    # )
 
 
 if __name__ == "__main__":
@@ -85,7 +100,7 @@ if __name__ == "__main__":
 
     DATA_PATH = "/home/chris/Documents/Univariate_ts"
 
-    CLUSTERER = "avg-change-stopping-ssg-adtw"
+    CLUSTERER = "proper-stopping-ssg-adtw"
     DATASET_NAME = "ACSF1"
 
     X_train, y_train = load_tsfile(
