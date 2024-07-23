@@ -65,6 +65,7 @@ def _set_experimental_clusterer(
             "holdit_num_ts_to_use_percentage": size / 100,
         }
     from aeon.clustering._holdit_k_means import HoldItKmeans
+
     return HoldItKmeans(
         n_clusters=n_clusters,
         max_iter=50,

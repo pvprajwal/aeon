@@ -11,8 +11,8 @@ from sklearn.utils import check_random_state
 from aeon.clustering.averaging import VALID_BA_METRICS
 from aeon.clustering.averaging._averaging import _resolve_average_callable
 from aeon.clustering.base import BaseClusterer
-from aeon.distances import pairwise_distance
 from aeon.distances import distance as compute_distance
+from aeon.distances import pairwise_distance
 
 
 class EmptyClusterError(Exception):
