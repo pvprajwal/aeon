@@ -306,6 +306,8 @@ class TimeSeriesKMeans(BaseClusterer):
                 self._init_algorithm = self._kmeans_plus_plus_center_initializer
             elif self.init_algorithm == "first":
                 self._init_algorithm = self._first_center_initializer
+            elif self.init_algorithm == "random_old":
+                self._init_algorithm = self._random_old_center_initializer
         else:
             if (
                 isinstance(self.init_algorithm, np.ndarray)
@@ -370,6 +372,31 @@ class TimeSeriesKMeans(BaseClusterer):
 
         centers = X[indexes]
         return centers
+
+    def _random_old_center_initializer(self, X: np.ndarray) -> np.ndarray:
+        # assign each time series to a random cluster
+        max_attempts = 200
+        attempts = 0
+        while True:
+            labels = self._random_state.choice(self.n_clusters, size=X.shape[0])
+            # Check one value in every cluster
+            temp = set(labels)
+            if len(temp) == self.n_clusters:
+                break
+            attempts += 1
+            if attempts > max_attempts:
+                raise ValueError(
+                    "Failed to initialize cluster centers after 200 attempts"
+                )
+
+        cluster_centers = np.zeros((self.n_clusters, X.shape[1], X.shape[2]))
+
+        for i in range(self.n_clusters):
+            cluster_centers[i] = self._averaging_method(
+                X[labels == i], **self._average_params
+            )
+
+        return cluster_centers
 
     def _handle_empty_cluster(
         self,

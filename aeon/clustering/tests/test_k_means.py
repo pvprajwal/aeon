@@ -419,3 +419,22 @@ def test_empty_cluster():
 
     with pytest.raises(ValueError):
         kmeans.fit(np.array([first, first, first, first, first]))
+
+
+def test_random_old_init():
+    """Test implementation of Kmeans."""
+    X_train, _ = load_gunpoint(split="train")
+    X_train = X_train[:10]
+
+    num_clusters = 4
+    kmeans = TimeSeriesKMeans(
+        random_state=1,
+        n_init=1,
+        max_iter=5,
+        init_algorithm="random_old",
+        distance="euclidean",
+        averaging_method="mean",
+        n_clusters=num_clusters,
+    )
+    kmeans.fit(X_train)
+    stop = ""
