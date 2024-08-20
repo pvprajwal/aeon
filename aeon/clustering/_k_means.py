@@ -198,9 +198,12 @@ class TimeSeriesKMeans(BaseClusterer):
         best_labels = None
         best_iters = self.max_iter
 
+        average_iterations = 0
+
         for _ in range(self.n_init):
             try:
                 labels, centers, inertia, n_iters = self._fit_one_init(X)
+                average_iterations += n_iters
                 if inertia < best_inertia:
                     best_centers = centers
                     best_labels = labels
@@ -223,6 +226,12 @@ class TimeSeriesKMeans(BaseClusterer):
         self.inertia_ = best_inertia
         self.cluster_centers_ = best_centers
         self.n_iter_ = best_iters
+
+        average_iterations = average_iterations / self.n_init
+        print("\n+++++++++++++++++++++++++++++++++++++++++++++++++++")  # noqa E501
+        print(f"Average number of iterations: {average_iterations}")  # noqa E501
+        print(f"Best iteration number of iterations: {best_iters}")  # noqa E501
+        print("+++++++++++++++++++++++++++++++++++++++++++++++++++")  # noqa E501
 
     def _fit_one_init(self, X: np.ndarray) -> tuple:
         if isinstance(self._init_algorithm, Callable):
@@ -269,13 +278,14 @@ class TimeSeriesKMeans(BaseClusterer):
                     cluster_centres[j] = new_average
 
             if self.verbose is True:
-                print(
-                    f"++++++++++++++++++ Iteration {i} ++++++++++++++++++"
-                )  # noqa: T001
+                print(  # noqa: T201
+                    f"++++++++++++++ Iteration {i} ++++++++++++++"  # noqa: T201
+                )  # noqa: T201
                 if len(num_iterations_ssg) > 0:
-                    print(
-                        f"Number of iterations for each cluster: {num_iterations_ssg}"
-                    )  # noqa: T001
+                    print(  # noqa: T201
+                        f"Number of iterations for each "  # noqa: T201
+                        f"cluster: {num_iterations_ssg}"  # noqa: T201
+                    )  # noqa: T201
 
         return prev_labels, cluster_centres, prev_inertia, i + 1
 
