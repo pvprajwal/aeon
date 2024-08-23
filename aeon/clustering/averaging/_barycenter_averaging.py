@@ -6,6 +6,7 @@ import numpy as np
 
 from aeon.clustering.averaging._ba_holdit import holdit_barycenter_average
 from aeon.clustering.averaging._ba_petitjean import petitjean_barycenter_average
+from aeon.clustering.averaging._ba_soft_dtw import soft_dtw_barycenter_average
 from aeon.clustering.averaging._ba_subgradient import subgradient_barycenter_average
 from aeon.clustering.averaging._ba_subgradient_stopping import (
     subgradient_proper_stop_barycenter_average,
@@ -139,6 +140,17 @@ def elastic_barycenter_average(
             random_state=random_state,
             **kwargs,
         )
+    elif method == "soft_dba":
+        return soft_dtw_barycenter_average(
+            X,
+            max_iters=max_iters,
+            tol=tol,
+            init_barycenter=init_barycenter,
+            weights=weights,
+            random_state=random_state,
+            **kwargs,
+        )
+
     elif method == "holdit":
         return holdit_barycenter_average(
             X,

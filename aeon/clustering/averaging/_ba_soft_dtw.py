@@ -11,7 +11,7 @@ def soft_dtw_barycenter_average(
     gamma: float = 1.0,
     minimise_method: str = "L-BFGS-B",
     max_iters: int = 30,
-    tol=1e-3,
+    tol=1e-5,
     init_barycenter: Union[np.ndarray, str] = "mean",
     weights: Optional[np.ndarray] = None,
     random_state: Optional[int] = None,
