@@ -177,6 +177,7 @@ def _ba_one_iter_subgradient(
     transformation_precomputed: bool = False,
     transformed_x: Optional[np.ndarray] = None,
     transformed_y: Optional[np.ndarray] = None,
+    gamma: float = 1.0,
 ):
 
     X_size, X_dims, X_timepoints = X.shape
@@ -207,6 +208,7 @@ def _ba_one_iter_subgradient(
             transformation_precomputed,
             transformed_x,
             transformed_y,
+            gamma,
         )
 
         new_ba = np.zeros((X_dims, X_timepoints))

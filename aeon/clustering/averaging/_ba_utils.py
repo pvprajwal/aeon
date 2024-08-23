@@ -15,6 +15,7 @@ from aeon.distances import (
     msm_alignment_path,
     pairwise_distance,
     shape_dtw_alignment_path,
+    soft_dtw_alignment_path,
     twe_alignment_path,
     wddtw_alignment_path,
     wdtw_alignment_path,
@@ -103,6 +104,7 @@ VALID_BA_METRICS = [
     "twe",
     "msm",
     "shape_dtw",
+    "soft_dtw",
 ]
 
 
@@ -124,6 +126,7 @@ def _get_alignment_path(
     transformation_precomputed: bool = False,
     transformed_x: Optional[np.ndarray] = None,
     transformed_y: Optional[np.ndarray] = None,
+    gamma: float = 1.0,
 ) -> Tuple[List[Tuple[int, int]], float]:
     if distance == "dtw":
         return dtw_alignment_path(ts, center, window)
@@ -154,6 +157,13 @@ def _get_alignment_path(
         )
     elif distance == "adtw":
         return adtw_alignment_path(ts, center, window=window, warp_penalty=warp_penalty)
+    elif distance == "soft_dtw":
+        return soft_dtw_alignment_path(
+            ts,
+            center,
+            gamma=gamma,
+            window=window,
+        )
     else:
         # When numba version > 0.57 add more informative error with what metric
         # was passed.
