@@ -58,6 +58,12 @@ from aeon.distances._shape_dtw import (
     shape_dtw_distance,
     shape_dtw_pairwise_distance,
 )
+from aeon.distances._soft_dtw import (
+    soft_dtw_alignment_path,
+    soft_dtw_cost_matrix,
+    soft_dtw_distance,
+    soft_dtw_pairwise_distance,
+)
 from aeon.distances._squared import squared_distance, squared_pairwise_distance
 from aeon.distances._twe import (
     twe_alignment_path,
@@ -97,6 +103,7 @@ class DistanceKwargs(TypedDict, total=False):
     warp_penalty: float
     standardize: bool
     m: int
+    gamma: float
 
 
 DistanceFunction = Callable[[np.ndarray, np.ndarray, Any], float]
@@ -249,6 +256,14 @@ def distance(
         )
     elif metric == "sbd":
         return sbd_distance(x, y, kwargs.get("standardize", True))
+    elif metric == "soft_dtw":
+        return soft_dtw_distance(
+            x,
+            y,
+            gamma=kwargs.get("gamma", 1.0),
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+        )
     else:
         if isinstance(metric, Callable):
             return metric(x, y, **kwargs)
@@ -419,6 +434,14 @@ def pairwise_distance(
         )
     elif metric == "sbd":
         return sbd_pairwise_distance(x, y, kwargs.get("standardize", True))
+    elif metric == "soft_dtw":
+        return soft_dtw_pairwise_distance(
+            x,
+            y,
+            gamma=kwargs.get("gamma", 1.0),
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+        )
     else:
         if isinstance(metric, Callable):
             return _custom_func_pairwise(x, y, metric, **kwargs)
@@ -609,6 +632,14 @@ def alignment_path(
             kwargs.get("itakura_max_slope"),
             kwargs.get("warp_penalty", 1.0),
         )
+    elif metric == "soft_dtw":
+        return soft_dtw_alignment_path(
+            x,
+            y,
+            gamma=kwargs.get("gamma", 1.0),
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+        )
     else:
         raise ValueError("Metric must be one of the supported strings")
 
@@ -752,6 +783,14 @@ def cost_matrix(
             kwargs.get("itakura_max_slope"),
             kwargs.get("warp_penalty", 1.0),
         )
+    elif metric == "soft_dtw":
+        return soft_dtw_cost_matrix(
+            x,
+            y,
+            gamma=kwargs.get("gamma", 1.0),
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+        )
     else:
         raise ValueError("Metric must be one of the supported strings")
 
@@ -804,6 +843,7 @@ def get_distance_function(metric: Union[str, DistanceFunction]) -> DistanceFunct
     'manhattan'     distances.manhattan_distance
     'minkowski'     distances.minkowski_distance
     'sbd'           distances.sbd_distance
+    'soft_dtw'      distances.soft_dtw_distance
     =============== ========================================
 
     Parameters
@@ -861,6 +901,7 @@ def get_pairwise_distance_function(
     'manhattan'     distances.manhattan_pairwise_distance
     'minkowski'     distances.minkowski_pairwise_distance
     'sbd'           distances.sbd_pairwise_distance
+    'soft_dtw'      distances.soft_dtw_pairwise_distance
     =============== ========================================
 
     Parameters
@@ -914,6 +955,7 @@ def get_alignment_path_function(metric: str) -> AlignmentPathFunction:
     'msm'           distances.msm_alignment_path
     'twe'           distances.twe_alignment_path
     'lcss'          distances.lcss_alignment_path
+    'soft_dtw'      distances.soft_dtw_alignment_path
     =============== ========================================
 
     Parameters
@@ -962,6 +1004,7 @@ def get_cost_matrix_function(metric: str) -> CostMatrixFunction:
     'msm'           distances.msm_cost_matrix
     'twe'           distances.twe_cost_matrix
     'lcss'          distances.lcss_cost_matrix
+    'soft_dtw'      distances.soft_dtw_cost_matrix
     =============== ========================================
 
     Parameters
@@ -1113,6 +1156,13 @@ DISTANCES = [
         "name": "sbd",
         "distance": sbd_distance,
         "pairwise_distance": sbd_pairwise_distance,
+    },
+    {
+        "name": "soft_dtw",
+        "distance": soft_dtw_distance,
+        "pairwise_distance": soft_dtw_pairwise_distance,
+        "cost_matrix": soft_dtw_cost_matrix,
+        "alignment_path": soft_dtw_alignment_path,
     },
 ]
 

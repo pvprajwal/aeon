@@ -1,23 +1,19 @@
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
-from numba import njit
+from tslearn.barycenters import softdtw_barycenter
 
-from aeon.clustering.averaging._ba_utils import (
-    _get_alignment_path,
-    _get_init_barycenter,
-)
+from aeon.clustering.averaging._ba_utils import _get_init_barycenter
 
 
-def petitjean_barycenter_average(
+def soft_dtw_barycenter_average(
     X: np.ndarray,
-    distance: str = "dtw",
+    gamma: float = 1.0,
+    minimise_method: str = "L-BFGS-B",
     max_iters: int = 30,
-    tol=1e-5,
+    tol=1e-3,
     init_barycenter: Union[np.ndarray, str] = "mean",
     weights: Optional[np.ndarray] = None,
-    precomputed_medoids_pairwise_distance: Optional[np.ndarray] = None,
-    verbose: bool = False,
     random_state: Optional[int] = None,
     **kwargs,
 ) -> np.ndarray:
@@ -78,88 +74,24 @@ def petitjean_barycenter_average(
     else:
         raise ValueError("X must be a 2D or 3D array")
 
-    if weights is None:
-        weights = np.ones(len(_X))
-
     barycenter = _get_init_barycenter(
         _X,
         init_barycenter,
-        distance,
-        precomputed_medoids_pairwise_distance,
-        random_state,
+        "soft_dtw",
+        random_state=random_state,
         **kwargs,
     )
 
-    cost_prev = np.inf
-    if distance == "wdtw" or distance == "wddtw":
-        if "g" not in kwargs:
-            kwargs["g"] = 0.05
-    for i in range(max_iters):
-        barycenter, cost = _ba_one_iter_petitjean(
-            barycenter, _X, distance, weights, **kwargs
-        )
-        if abs(cost_prev - cost) < tol:
-            break
-        elif cost_prev < cost:
-            break
-        else:
-            cost_prev = cost
+    barycenter = barycenter.swapaxes(0, 1)
 
-        if verbose:
-            print(f"[DBA] epoch {i}, cost {cost}")  # noqa: T001, T201
-    return barycenter
+    X = X.swapaxes(1, 2)
 
-
-@njit(cache=True, fastmath=True)
-def _ba_one_iter_petitjean(
-    barycenter: np.ndarray,
-    X: np.ndarray,
-    distance: str = "dtw",
-    weights: Optional[np.ndarray] = None,
-    window: Union[float, None] = None,
-    g: float = 0.0,
-    epsilon: Union[float, None] = None,
-    nu: float = 0.001,
-    lmbda: float = 1.0,
-    independent: bool = True,
-    c: float = 1.0,
-    descriptor: str = "identity",
-    reach: int = 30,
-    warp_penalty: float = 1.0,
-    transformation_precomputed: bool = False,
-    transformed_x: Optional[np.ndarray] = None,
-    transformed_y: Optional[np.ndarray] = None,
-    gamma: float = 1.0,
-) -> Tuple[np.ndarray, float]:
-    X_size, X_dims, X_timepoints = X.shape
-    sum = np.zeros(X_timepoints)
-    alignment = np.zeros((X_dims, X_timepoints))
-    cost = 0.0
-    for i in range(X_size):
-        curr_ts = X[i]
-        curr_alignment, curr_cost = _get_alignment_path(
-            barycenter,
-            curr_ts,
-            distance,
-            window,
-            g,
-            epsilon,
-            nu,
-            lmbda,
-            independent,
-            c,
-            descriptor,
-            reach,
-            warp_penalty,
-            transformation_precomputed,
-            transformed_x,
-            transformed_y,
-            gamma=gamma,
-        )
-
-        for j, k in curr_alignment:
-            alignment[:, k] += curr_ts[:, j] * weights[i]
-            sum[k] += 1 * weights[i]
-        cost += curr_cost * weights[i]
-
-    return alignment / sum, cost
+    return softdtw_barycenter(
+        X,
+        gamma=gamma,
+        weights=weights,
+        method=minimise_method,
+        tol=tol,
+        max_iter=max_iters,
+        init=barycenter,
+    ).swapaxes(0, 1)
