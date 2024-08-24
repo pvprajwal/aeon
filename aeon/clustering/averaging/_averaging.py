@@ -23,7 +23,10 @@ def mean_average(X: np.ndarray, **kwargs) -> np.ndarray:
         The time series that is the mean.
     """
     if X.shape[0] <= 1:
-        return X
+        if len(X.shape) == 2:
+            return X
+        else:
+            return X[0]
     return X.mean(axis=0)
 
 
