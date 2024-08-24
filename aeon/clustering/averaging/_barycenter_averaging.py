@@ -112,6 +112,11 @@ def elastic_barycenter_average(
        for Averaging in Dynamic Time Warping Spaces.
        Pattern Recognition, 74, 340-358.
     """
+    if X.shape[0] <= 1:
+        if len(X.shape) == 2:
+            return X
+        else:
+            return X[0]
     if method == "petitjean":
         return petitjean_barycenter_average(
             X,
