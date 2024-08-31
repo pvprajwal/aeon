@@ -12,7 +12,7 @@ from aeon.distances._alignment_paths import compute_min_return_path
 from aeon.distances._bounding_matrix import create_bounding_matrix
 from aeon.distances._dtw import _dtw_cost_matrix
 from aeon.distances._squared import _univariate_squared_distance
-from aeon.distances._utils import _convert_to_list, _is_multivariate
+from aeon.distances._utils import _convert_to_list, _is_multivariate, _softmin3
 
 
 @njit(cache=True, fastmath=True)
@@ -171,21 +171,6 @@ def _soft_dtw_distance(
         x.shape[1] - 1, y.shape[1] - 1
     ]
 
-
-@njit(fastmath=True)
-def _softmin3(a, b, c, gamma):
-    r"""Compute softmin of 3 input variables with parameter gamma.
-
-    This code is adapted from tslearn.
-    """
-    a /= -gamma
-    b /= -gamma
-    c /= -gamma
-    max_val = max(a, b, c)
-    tmp = np.exp(a - max_val) + np.exp(b - max_val) + np.exp(c - max_val)
-    return -gamma * (np.log(tmp) + max_val)
-
-
 @njit(cache=True, fastmath=True)
 def _soft_dtw_cost_matrix(
     x: np.ndarray, y: np.ndarray, bounding_matrix: np.ndarray, gamma: float
@@ -210,6 +195,64 @@ def _soft_dtw_cost_matrix(
                 )
 
     return cost_matrix[1:, 1:]
+
+
+# @njit(cache=True, fastmath=True)
+def soft_dtw_gradient(
+        x: np.ndarray,
+        y: np.ndarray,
+        gamma: float = 1.0,
+        window: Optional[float] = None,
+        itakura_max_slope: Optional[float] = None,
+) -> np.ndarray:
+    if x.ndim == 1 and y.ndim == 1:
+        _x = x.reshape((1, x.shape[0]))
+        _y = y.reshape((1, y.shape[0]))
+        bounding_matrix = create_bounding_matrix(
+            _x.shape[1], _y.shape[1], window, itakura_max_slope
+        )
+        return _soft_dtw_gradient(_x, _y, bounding_matrix, gamma)
+    if x.ndim == 2 and y.ndim == 2:
+        bounding_matrix = create_bounding_matrix(
+            x.shape[1], y.shape[1], window, itakura_max_slope
+        )
+        return _soft_dtw_gradient(x, y, bounding_matrix, gamma)
+    raise ValueError("x and y must be 1D or 2D")
+
+from aeon.distances._squared import squared_distance
+
+# @njit(cache=True, fastmath=True)
+def _soft_dtw_gradient(
+        x: np.ndarray, y: np.ndarray, bounding_matrix: np.ndarray, gamma: float
+) -> np.ndarray:
+    cost_matrix = _soft_dtw_cost_matrix(x, y, bounding_matrix, gamma)
+    squared_dist = np.zeros((x.shape[1], y.shape[1]))
+    for i in range(x.shape[1]):
+        for j in range(y.shape[1]):
+            squared_dist[i, j] = squared_distance(x[:, i], y[:, j])
+    # Add extra row and column to distance matrix
+    m, n = cost_matrix.shape
+    cost_matrix = np.vstack((cost_matrix, np.zeros(n)))
+    cost_matrix = np.hstack((cost_matrix, np.zeros((m + 1, 1))))
+    E = np.zeros((m + 1, n + 1))
+
+    E[m, n] = 1.0  # Start from the bottom-right corner
+
+    for j in range(n, 0, -1):  # Traverse the matrix in reverse
+        for i in range(m, 0, -1):
+            # if cost_matrix[i, j] != np.inf:
+            a = np.exp((cost_matrix[i + 1, j] - cost_matrix[i, j]) / gamma)
+            b = np.exp((cost_matrix[i, j + 1] - cost_matrix[i, j]) / gamma)
+            c = np.exp((cost_matrix[i + 1, j + 1] - cost_matrix[i, j]) / gamma)
+
+            E[i, j] = E[i + 1, j] * a + E[i, j + 1] * b + E[i + 1, j + 1] * c
+
+    grad = np.zeros((m, n))
+    for i in range(m):
+        for j in range(n):
+            grad[i, j] = E[i, j] * np.exp(-cost_matrix[i, j] / gamma)
+
+    return grad
 
 
 def soft_dtw_pairwise_distance(

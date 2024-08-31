@@ -1,21 +1,26 @@
 from typing import Optional, Union
 
 import numpy as np
-from tslearn.barycenters import softdtw_barycenter
+from scipy.optimize import minimize
 
 from aeon.clustering.averaging._ba_utils import _get_init_barycenter
+from aeon.distances import soft_dtw_distance, squared_distance, pairwise_distance, \
+    squared_pairwise_distance, soft_dtw_cost_matrix
+
+from aeon.distances._soft_dtw import soft_dtw_gradient
 
 
-def soft_dtw_barycenter_average(
-    X: np.ndarray,
-    gamma: float = 1.0,
-    minimise_method: str = "L-BFGS-B",
-    max_iters: int = 30,
-    tol=1e-5,
-    init_barycenter: Union[np.ndarray, str] = "mean",
-    weights: Optional[np.ndarray] = None,
-    random_state: Optional[int] = None,
-    **kwargs,
+def soft_barycenter_average(
+        X: np.ndarray,
+        distance: str = "soft_dtw",
+        gamma: float = 1.0,
+        minimise_method: str = "L-BFGS-B",
+        max_iters: int = 30,
+        tol=1e-5,
+        init_barycenter: Union[np.ndarray, str] = "mean",
+        weights: Optional[np.ndarray] = None,
+        random_state: Optional[int] = None,
+        **kwargs,
 ) -> np.ndarray:
     """Compute the barycenter average of time series using a elastic distance.
 
@@ -77,28 +82,51 @@ def soft_dtw_barycenter_average(
     barycenter = _get_init_barycenter(
         _X,
         init_barycenter,
-        "soft_dtw",
+        distance,
         random_state=random_state,
         **kwargs,
     )
+    barycenter_shape = barycenter.shape
 
-    barycenter = barycenter.swapaxes(0, 1)
+    def f(curr_barycenter):
+        curr_barycenter = curr_barycenter.reshape(barycenter_shape)
+        return _softdtw_func(curr_barycenter, X, gamma=gamma, weights=weights)
 
-    X = X.swapaxes(1, 2)
+    res = minimize(f, barycenter.ravel(), method=minimise_method, jac=True, tol=tol,
+                   options=dict(maxiter=max_iters, disp=False))
 
-    return softdtw_barycenter(
-        X,
-        gamma=gamma,
-        weights=weights,
-        method=minimise_method,
-        tol=tol,
-        max_iter=max_iters,
-        init=barycenter,
-    ).swapaxes(0, 1)
+    # X = X.swapaxes(1, 2)
+    #
+    # return softdtw_barycenter(
+    #     X,
+    #     gamma=gamma,
+    #     weights=weights,
+    #     method=minimise_method,
+    #     tol=tol,
+    #     max_iter=max_iters,
+    #     init=barycenter,
+    # ).swapaxes(0, 1)
+def _softdtw_func(curr_barycentre, X, weights, gamma):
+    G = np.zeros_like(curr_barycentre)
+    obj = 0
+
+    for i in range(len(X)):
+        first_value = X[i]
+        value = soft_dtw_distance(curr_barycentre, X[i], gamma=gamma)
+        # Add extra row and column to distance matrix
+        test = soft_dtw_gradient(curr_barycentre, X[i], gamma)
+
+        stop = ""
+    #     E = sdtw.grad()
+    #     G_tmp = D.jacobian_product(E)
+    #     G += weights[i] * G_tmp
+    #     obj += weights[i] * value
+    #
+    # return obj, G.ravel()
 
 if __name__ == "__main__":
     from aeon.testing.data_generation import make_example_3d_numpy
 
     X = make_example_3d_numpy(n_cases=20, n_channels=1, n_timepoints=100, return_y=False, random_state=1)
 
-    soft_dtw_barycenter_average(X)
+    soft_barycenter_average(X)

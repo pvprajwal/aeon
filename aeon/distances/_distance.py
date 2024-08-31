@@ -84,6 +84,24 @@ from aeon.distances._wdtw import (
     wdtw_distance,
     wdtw_pairwise_distance,
 )
+from aeon.distances._soft_adtw import (
+    soft_adtw_alignment_path,
+    soft_adtw_cost_matrix,
+    soft_adtw_distance,
+    soft_adtw_pairwise_distance,
+)
+from aeon.distances._soft_msm import (
+    soft_msm_alignment_path,
+    soft_msm_cost_matrix,
+    soft_msm_distance,
+    soft_msm_pairwise_distance,
+)
+from aeon.distances._soft_twe import (
+    soft_twe_alignment_path,
+    soft_twe_cost_matrix,
+    soft_twe_distance,
+    soft_twe_pairwise_distance,
+)
 
 
 class DistanceKwargs(TypedDict, total=False):
@@ -264,6 +282,35 @@ def distance(
             itakura_max_slope=kwargs.get("itakura_max_slope"),
             window=kwargs.get("window"),
         )
+    elif metric == "soft_adtw":
+        return soft_adtw_distance(
+            x,
+            y,
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+            warp_penalty=kwargs.get("warp_penalty", 1.0),
+            gamma=kwargs.get("gamma", 1.0),
+        )
+    elif metric == "soft_msm":
+        return soft_msm_distance(
+            x,
+            y,
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+            independent=kwargs.get("independent", True),
+            c=kwargs.get("c", 1.0),
+            gamma=kwargs.get("gamma", 1.0),
+        )
+    elif metric == "soft_twe":
+        return soft_twe_distance(
+            x,
+            y,
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+            nu=kwargs.get("nu", 0.001),
+            lmbda=kwargs.get("lmbda", 1.0),
+            gamma=kwargs.get("gamma", 1.0),
+        )
     else:
         if isinstance(metric, Callable):
             return metric(x, y, **kwargs)
@@ -441,6 +488,35 @@ def pairwise_distance(
             gamma=kwargs.get("gamma", 1.0),
             itakura_max_slope=kwargs.get("itakura_max_slope"),
             window=kwargs.get("window"),
+        )
+    elif metric == "soft_adtw":
+        return soft_adtw_pairwise_distance(
+            x,
+            y,
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+            warp_penalty=kwargs.get("warp_penalty", 1.0),
+            gamma=kwargs.get("gamma", 1.0),
+        )
+    elif metric == "soft_msm":
+        return soft_msm_pairwise_distance(
+            x,
+            y,
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+            independent=kwargs.get("independent", True),
+            c=kwargs.get("c", 1.0),
+            gamma=kwargs.get("gamma", 1.0),
+        )
+    elif metric == "soft_twe":
+        return soft_twe_pairwise_distance(
+            x,
+            y,
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+            nu=kwargs.get("nu", 0.001),
+            lmbda=kwargs.get("lmbda", 1.0),
+            gamma=kwargs.get("gamma", 1.0),
         )
     else:
         if isinstance(metric, Callable):
@@ -640,6 +716,35 @@ def alignment_path(
             itakura_max_slope=kwargs.get("itakura_max_slope"),
             window=kwargs.get("window"),
         )
+    elif metric == "soft_adtw":
+        return soft_adtw_alignment_path(
+            x,
+            y,
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+            warp_penalty=kwargs.get("warp_penalty", 1.0),
+            gamma=kwargs.get("gamma", 1.0),
+        )
+    elif metric == "soft_msm":
+        return soft_msm_alignment_path(
+            x,
+            y,
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+            independent=kwargs.get("independent", True),
+            c=kwargs.get("c", 1.0),
+            gamma=kwargs.get("gamma", 1.0),
+        )
+    elif metric == "soft_twe":
+        return soft_twe_alignment_path(
+            x,
+            y,
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+            nu=kwargs.get("nu", 0.001),
+            lmbda=kwargs.get("lmbda", 1.0),
+            gamma=kwargs.get("gamma", 1.0),
+        )
     else:
         raise ValueError("Metric must be one of the supported strings")
 
@@ -791,6 +896,35 @@ def cost_matrix(
             itakura_max_slope=kwargs.get("itakura_max_slope"),
             window=kwargs.get("window"),
         )
+    elif metric == "soft_adtw":
+        return soft_adtw_cost_matrix(
+            x,
+            y,
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+            warp_penalty=kwargs.get("warp_penalty", 1.0),
+            gamma=kwargs.get("gamma", 1.0),
+        )
+    elif metric == "soft_msm":
+        return soft_msm_cost_matrix(
+            x,
+            y,
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+            independent=kwargs.get("independent", True),
+            c=kwargs.get("c", 1.0),
+            gamma=kwargs.get("gamma", 1.0),
+        )
+    elif metric == "soft_twe":
+        return soft_twe_cost_matrix(
+            x,
+            y,
+            itakura_max_slope=kwargs.get("itakura_max_slope"),
+            window=kwargs.get("window"),
+            nu=kwargs.get("nu", 0.001),
+            lmbda=kwargs.get("lmbda", 1.0),
+            gamma=kwargs.get("gamma", 1.0),
+        )
     else:
         raise ValueError("Metric must be one of the supported strings")
 
@@ -844,6 +978,9 @@ def get_distance_function(metric: Union[str, DistanceFunction]) -> DistanceFunct
     'minkowski'     distances.minkowski_distance
     'sbd'           distances.sbd_distance
     'soft_dtw'      distances.soft_dtw_distance
+    'soft_adtw'     distances.soft_adtw_distance
+    'soft_msm'      distances.soft_msm_distance
+    'soft_twe'      distances.soft_twe_distance
     =============== ========================================
 
     Parameters
@@ -902,6 +1039,9 @@ def get_pairwise_distance_function(
     'minkowski'     distances.minkowski_pairwise_distance
     'sbd'           distances.sbd_pairwise_distance
     'soft_dtw'      distances.soft_dtw_pairwise_distance
+    'soft_adtw'     distances.soft_adtw_pairwise_distance
+    'soft_msm'      distances.soft_msm_pairwise_distance
+    'soft_twe'      distances.soft_twe_pairwise_distance
     =============== ========================================
 
     Parameters
@@ -956,6 +1096,9 @@ def get_alignment_path_function(metric: str) -> AlignmentPathFunction:
     'twe'           distances.twe_alignment_path
     'lcss'          distances.lcss_alignment_path
     'soft_dtw'      distances.soft_dtw_alignment_path
+    'soft_adtw'     distances.soft_adtw_alignment_path
+    'soft_msm'      distances.soft_msm.soft_msm_alignment_path
+    'soft_twe'      distances.soft_twe.soft_twe_alignment_path
     =============== ========================================
 
     Parameters
@@ -1005,6 +1148,9 @@ def get_cost_matrix_function(metric: str) -> CostMatrixFunction:
     'twe'           distances.twe_cost_matrix
     'lcss'          distances.lcss_cost_matrix
     'soft_dtw'      distances.soft_dtw_cost_matrix
+    'soft_adtw'     distances.soft_adtw_cost_matrix
+    'soft_msm'      distances.soft_msm_cost_matrix
+    'soft_twe'      distances.soft_twe_cost_matrix
     =============== ========================================
 
     Parameters
@@ -1164,6 +1310,27 @@ DISTANCES = [
         "cost_matrix": soft_dtw_cost_matrix,
         "alignment_path": soft_dtw_alignment_path,
     },
+    {
+        "name": "soft_adtw",
+        "distance": soft_adtw_distance,
+        "pairwise_distance": soft_adtw_pairwise_distance,
+        "cost_matrix": soft_adtw_cost_matrix,
+        "alignment_path": soft_adtw_alignment_path,
+    },
+    {
+        "name": "soft_msm",
+        "distance": soft_msm_distance,
+        "pairwise_distance": soft_msm_pairwise_distance,
+        "cost_matrix": soft_msm_cost_matrix,
+        "alignment_path": soft_msm_alignment_path,
+    },
+    {
+        "name": "soft_twe",
+        "distance": soft_twe_distance,
+        "pairwise_distance": soft_twe_pairwise_distance,
+        "cost_matrix": soft_twe_cost_matrix,
+        "alignment_path": soft_twe_alignment_path,
+    }
 ]
 
 DISTANCES_DICT = {d["name"]: d for d in DISTANCES}
