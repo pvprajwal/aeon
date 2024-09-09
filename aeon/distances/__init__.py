@@ -75,18 +75,6 @@ __all__ = [
     "soft_dtw_alignment_path",
     "soft_dtw_cost_matrix",
     "soft_dtw_pairwise_distance",
-    "soft_adtw_distance",
-    "soft_adtw_alignment_path",
-    "soft_adtw_cost_matrix",
-    "soft_adtw_pairwise_distance",
-    "soft_msm_distance",
-    "soft_msm_alignment_path",
-    "soft_msm_cost_matrix",
-    "soft_msm_pairwise_distance",
-    "soft_twe_distance",
-    "soft_twe_alignment_path",
-    "soft_twe_cost_matrix",
-    "soft_twe_pairwise_distance",
 ]
 
 
@@ -183,28 +171,4 @@ from aeon.distances._wdtw import (
     wdtw_cost_matrix,
     wdtw_distance,
     wdtw_pairwise_distance,
-)
-from aeon.distances._soft_adtw import (
-    soft_adtw_alignment_path,
-    soft_adtw_cost_matrix,
-    soft_adtw_distance,
-    soft_adtw_pairwise_distance,
-)
-from aeon.distances._soft_msm import (
-    soft_msm_alignment_path,
-    soft_msm_cost_matrix,
-    soft_msm_distance,
-    soft_msm_pairwise_distance,
-)
-from aeon.distances._soft_twe import (
-    soft_twe_alignment_path,
-    soft_twe_cost_matrix,
-    soft_twe_distance,
-    soft_twe_pairwise_distance,
-)
-from aeon.distances._soft_twe import (
-    soft_twe_alignment_path,
-    soft_twe_cost_matrix,
-    soft_twe_distance,
-    soft_twe_pairwise_distance,
 )
