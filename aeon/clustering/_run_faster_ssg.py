@@ -69,7 +69,7 @@ def _set_experimental_clusterer(
     return HoldItKmeans(
         n_clusters=n_clusters,
         max_iter=50,
-        n_init=10,
+        n_init=1,
         init_algorithm="random",
         distance=distance,
         distance_params=distance_params,

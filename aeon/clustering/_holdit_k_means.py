@@ -178,6 +178,7 @@ class HoldItKmeans(BaseClusterer):
         self._init_algorithm = None
         self._averaging_method = None
         self._average_params = None
+        self._previous_iterations_assignments = []
 
         super().__init__(n_clusters)
 
@@ -241,6 +242,15 @@ class HoldItKmeans(BaseClusterer):
             if self.verbose:
                 print("%.3f" % curr_inertia, end=" --> ")  # noqa: T001, T201
 
+            if np.array_equal(prev_labels, curr_labels):
+                if prev_inertia < curr_inertia:
+                    cluster_centres = prev_centres
+                    prev_inertia = curr_inertia
+                    prev_labels = curr_labels
+                if self.verbose:
+                    print("No change in labels")  # noqa: T001, T201
+                break
+
             change_in_centres = np.abs(prev_inertia - curr_inertia)
             prev_inertia = curr_inertia
             prev_labels = curr_labels
@@ -266,6 +276,7 @@ class HoldItKmeans(BaseClusterer):
                     total_dist += compute_distance(
                         cluster_centres[j], prev_centres[j], metric=self.distance
                     )
+
                 if total_dist < self.tol:
                     break
             else:
@@ -279,6 +290,7 @@ class HoldItKmeans(BaseClusterer):
                     print(
                         f"Number of iterations for each cluster: {num_iterations_ssg}"
                     )  # noqa: T001
+            self._previous_iterations_assignments.append(prev_labels)
 
         return prev_labels, cluster_centres, prev_inertia, i + 1
 
