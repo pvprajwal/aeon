@@ -371,16 +371,27 @@ class HoldItKmeans(BaseClusterer):
         initial_center_idx = self._random_state.randint(X.shape[0])
         indexes = [initial_center_idx]
 
+        min_distances = pairwise_distance(
+            X,
+            X[initial_center_idx].reshape(1, -1),
+            metric=self.distance,
+            **self._distance_params,
+        ).flatten()
+
         for _ in range(1, self.n_clusters):
-            pw_dist = pairwise_distance(
-                X, X[indexes], metric=self.distance, **self._distance_params
-            )
-            min_distances = pw_dist.min(axis=1)
             probabilities = min_distances / min_distances.sum()
             next_center_idx = self._random_state.choice(X.shape[0], p=probabilities)
             indexes.append(next_center_idx)
+            distances_new_center = pairwise_distance(
+                X,
+                X[next_center_idx].reshape(1, -1),
+                metric=self.distance,
+                **self._distance_params,
+            ).flatten()
+            min_distances = np.minimum(min_distances, distances_new_center)
 
         centers = X[indexes]
+
         return centers
 
     def _handle_empty_cluster(
