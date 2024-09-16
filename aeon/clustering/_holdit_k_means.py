@@ -250,14 +250,12 @@ class HoldItKmeans(BaseClusterer):
             if self.verbose:
                 print("%.3f" % curr_inertia, end=" --> ")  # noqa: T001, T201
 
-            if np.array_equal(prev_labels, curr_labels):
+            same_labels_stopping_condition = np.array_equal(prev_labels, curr_labels)
+
+            # Break here if the previous centres were better
+            if same_labels_stopping_condition:
                 if prev_inertia < curr_inertia:
-                    cluster_centres = prev_centres
-                    prev_inertia = curr_inertia
-                    prev_labels = curr_labels
-                if self.verbose:
-                    print("No change in labels")  # noqa: T001, T201
-                break
+                    break
 
             change_in_centres = np.abs(prev_inertia - curr_inertia)
             prev_inertia = curr_inertia
