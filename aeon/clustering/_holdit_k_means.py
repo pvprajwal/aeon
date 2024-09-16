@@ -178,7 +178,6 @@ class HoldItKmeans(BaseClusterer):
         self._init_algorithm = None
         self._averaging_method = None
         self._average_params = None
-        self._previous_iterations_assignments = []
 
         super().__init__(n_clusters)
 
@@ -190,9 +189,12 @@ class HoldItKmeans(BaseClusterer):
         best_labels = None
         best_iters = self.max_iter
 
+        average_iterations = 0
+
         for _ in range(self.n_init):
             try:
                 labels, centers, inertia, n_iters = self._fit_one_init(X)
+                average_iterations += n_iters
                 if inertia < best_inertia:
                     best_centers = centers
                     best_labels = labels
@@ -215,6 +217,12 @@ class HoldItKmeans(BaseClusterer):
         self.inertia_ = best_inertia
         self.cluster_centers_ = best_centers
         self.n_iter_ = best_iters
+
+        average_iterations = average_iterations / self.n_init
+        print("\n+++++++++++++++++++++++++++++++++++++++++++++++++++")  # noqa E501
+        print(f"Average number of iterations: {average_iterations}")  # noqa E501
+        print(f"Best iteration number of iterations: {best_iters}")  # noqa E501
+        print("+++++++++++++++++++++++++++++++++++++++++++++++++++")  # noqa E501
 
     def _fit_one_init(self, X: np.ndarray) -> tuple:
         if isinstance(self._init_algorithm, Callable):
@@ -270,18 +278,6 @@ class HoldItKmeans(BaseClusterer):
                 else:
                     cluster_centres[j] = new_average
 
-            if prev_centres is not None:
-                total_dist = 0
-                for j in range(self.n_clusters):
-                    total_dist += compute_distance(
-                        cluster_centres[j], prev_centres[j], metric=self.distance
-                    )
-
-                if total_dist < self.tol:
-                    break
-            else:
-                prev_centres = cluster_centres.copy()
-
             if self.verbose is True:
                 print(
                     f"++++++++++++++++++ Iteration {i} ++++++++++++++++++"
@@ -290,7 +286,6 @@ class HoldItKmeans(BaseClusterer):
                     print(
                         f"Number of iterations for each cluster: {num_iterations_ssg}"
                     )  # noqa: T001
-            self._previous_iterations_assignments.append(prev_labels)
 
         return prev_labels, cluster_centres, prev_inertia, i + 1
 

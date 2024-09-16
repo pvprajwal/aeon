@@ -68,14 +68,17 @@ def _set_experimental_clusterer(
 
     return HoldItKmeans(
         n_clusters=n_clusters,
-        max_iter=50,
+        max_iter=300,
         n_init=1,
-        init_algorithm="random",
+        init_algorithm="kmeans++",
         distance=distance,
         distance_params=distance_params,
         random_state=random_state,
         averaging_method="ba",
-        average_params=average_params,
+        average_params={
+            **average_params,
+            "max_iters": 300,
+        },
         verbose=True,
         **kwargs,
     )
