@@ -77,7 +77,6 @@ def _set_experimental_clusterer(
         averaging_method="ba",
         average_params={
             **average_params,
-            "max_iters": 300,
         },
         verbose=True,
         **kwargs,
