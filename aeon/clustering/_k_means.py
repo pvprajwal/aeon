@@ -376,7 +376,7 @@ class TimeSeriesKMeans(BaseClusterer):
                 X, X[indexes], metric=self.distance, **self._distance_params
             )
             min_distances = pw_dist.min(axis=1)
-            probabilities = min_distances / min_distances.sum()
+            probabilities = np.abs(min_distances / min_distances.sum())
             next_center_idx = self._random_state.choice(X.shape[0], p=probabilities)
             indexes.append(next_center_idx)
 
