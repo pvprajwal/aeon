@@ -74,7 +74,7 @@ def _set_experimental_clusterer(
         distance=distance,
         distance_params=distance_params,
         random_state=random_state,
-        averaging_method="ba",
+        averaging_method="mean",
         average_params={
             **average_params,
         },
@@ -110,11 +110,18 @@ if __name__ == "__main__":
         f"{DATA_PATH}/{DATASET_NAME}/{DATASET_NAME}_TRAIN.ts"
     )
     X_test, y_test = load_tsfile(f"{DATA_PATH}/{DATASET_NAME}/{DATASET_NAME}_TEST.ts")
-
+    #
     X_train = X_train[:, :, :100]
     y_train = y_train[:100]
     X_test = X_test[:, :, :100]
     y_test = y_test[:100]
+    from aeon.distances import dtw_distance, euclidean_distance
+    first = X_train[0][0]
+    reverse = np.array(first[::-1])
+
+    print(dtw_distance(first, reverse))
+    print(euclidean_distance(first, reverse))
+    print(dtw_distance(first, X_train[1][0]))
 
     clusterer = _set_experimental_clusterer(
         c=CLUSTERER, n_clusters=len(np.unique(y_train)), random_state=1, kwargs={}
@@ -122,5 +129,9 @@ if __name__ == "__main__":
 
     clusterer.fit(X_train)
     print(clusterer.labels_)
+    from sklearn.metrics import davies_bouldin_score
+    # remove middle axis in X_train
+    temp = X_train.reshape(X_train.shape[0], -1)
+    print(davies_bouldin_score(temp, clusterer.labels_))
 
     temp = ""
