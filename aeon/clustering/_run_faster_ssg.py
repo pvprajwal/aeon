@@ -116,6 +116,7 @@ if __name__ == "__main__":
     X_test = X_test[:, :, :100]
     y_test = y_test[:100]
     from aeon.distances import dtw_distance, euclidean_distance
+
     first = X_train[0][0]
     reverse = np.array(first[::-1])
 
@@ -130,6 +131,7 @@ if __name__ == "__main__":
     clusterer.fit(X_train)
     print(clusterer.labels_)
     from sklearn.metrics import davies_bouldin_score
+
     # remove middle axis in X_train
     temp = X_train.reshape(X_train.shape[0], -1)
     print(davies_bouldin_score(temp, clusterer.labels_))
