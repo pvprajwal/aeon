@@ -100,6 +100,10 @@ class TimeSeriesKMeans(BaseClusterer):
         wanted to specify a window for DTW you would pass
         distance_params={"window": 0.2}. See documentation of aeon.distances for more
         details.
+    algorithm: str, default='lloyds'
+        The kmeans algorithm to use. Valid strings are ["lloyds', "elkan"]. Elkan is
+        faster but requires the distance measure used to satisfy the triangle
+        inequality. Lloyds is slower but can work with any distance measure.
 
     Attributes
     ----------
@@ -170,6 +174,7 @@ class TimeSeriesKMeans(BaseClusterer):
         distance_params: Optional[dict] = None,
         average_params: Optional[dict] = None,
         init_algorithm: Optional[Union[str, np.ndarray]] = None,
+        algorithm: str = "lloyds",
     ):
         self.init = init
         self.init_algorithm = init_algorithm
@@ -192,6 +197,7 @@ class TimeSeriesKMeans(BaseClusterer):
         self.distance_params = distance_params
         self.average_params = average_params
         self.averaging_method = averaging_method
+        self.algorithm = algorithm
 
         self.cluster_centers_ = None
         self.labels_ = None
@@ -215,7 +221,15 @@ class TimeSeriesKMeans(BaseClusterer):
 
         for _ in range(self.n_init):
             try:
-                labels, centers, inertia, n_iters = self._fit_one_init(X)
+                if self.algorithm == "lloyds":
+                    labels, centers, inertia, n_iters = self._fit_one_init_lloyds(X)
+                elif self.algorithm == "elkan":
+                    labels, centers, inertia, n_iters = self._fit_one_init_elkan(X)
+                else:
+                    raise ValueError(
+                        "Invalid algorithm specified. Must be 'lloyds' or 'elkan'"
+                    )
+
                 if inertia < best_inertia:
                     best_centers = centers
                     best_labels = labels
@@ -238,7 +252,10 @@ class TimeSeriesKMeans(BaseClusterer):
         self.cluster_centers_ = best_centers
         self.n_iter_ = best_iters
 
-    def _fit_one_init(self, X: np.ndarray) -> tuple:
+    def _fit_one_init_elkan(self, X: np.ndarray) -> tuple:
+        pass
+
+    def _fit_one_init_lloyds(self, X: np.ndarray) -> tuple:
         if isinstance(self._init, Callable):
             cluster_centres = self._init(X)
         else:
