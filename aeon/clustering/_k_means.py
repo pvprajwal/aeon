@@ -13,7 +13,7 @@ from sklearn.utils import check_random_state
 from aeon.clustering.averaging import VALID_BA_METRICS
 from aeon.clustering.averaging._averaging import _resolve_average_callable
 from aeon.clustering.base import BaseClusterer
-from aeon.distances import pairwise_distance
+from aeon.distances import distance, pairwise_distance
 
 
 class EmptyClusterError(Exception):
@@ -253,7 +253,168 @@ class TimeSeriesKMeans(BaseClusterer):
         self.n_iter_ = best_iters
 
     def _fit_one_init_elkan(self, X: np.ndarray) -> tuple:
-        pass
+        # Initialize the centroids (same as in the Lloyd's method)
+        n_instances, n_channels, n_timepoints = X.shape
+
+        if isinstance(self._init, Callable):
+            cluster_centres = self._init(X)
+        else:
+            cluster_centres = self._init.copy()
+
+        n_clusters = cluster_centres.shape[0]
+        # Initialize labels, upper bounds, lower bounds
+        curr_labels = np.zeros(n_instances, dtype=int)
+        upper_bounds = np.full(n_instances, np.inf)
+        lower_bounds = np.zeros((n_instances, n_clusters))
+
+        prev_inertia = np.inf
+
+        for i in range(self.max_iter):
+            # Step 1: Compute center-center distances using pairwise_distance
+            center_distances = pairwise_distance(
+                cluster_centres,
+                cluster_centres,
+                metric=self.distance,
+                **self._distance_params,
+            )
+
+            # Step 2: Compute half the minimum distance to other centers for each center
+            center_half_min_dist = 0.5 * np.min(
+                center_distances + np.diag([np.inf] * n_clusters), axis=1
+            )
+
+            # Step 3: Assignment step with bounds
+
+            # if self.distance == "euclidean":
+            #     distance_func = _euclidean_distance
+            # else:
+            #     distance_func = twe_distance
+            # curr_labels, upper_bounds, lower_bounds = _numba_elkan_assignments(
+            #     X,
+            #     cluster_centres,
+            #     n_instances,
+            #     curr_labels,
+            #     upper_bounds,
+            #     lower_bounds,
+            #     center_distances,
+            #     center_half_min_dist,
+            #     n_clusters,
+            #     distance_func
+            # )
+            for idx in range(n_instances):
+                current_center = curr_labels[idx]
+                if upper_bounds[idx] <= center_half_min_dist[current_center]:
+                    continue  # Current center is sufficiently close
+                needs_update = True
+                for j in range(n_clusters):
+                    if j == current_center:
+                        continue
+                    z = max(
+                        lower_bounds[idx, j], 0.5 * center_distances[current_center, j]
+                    )
+                    if upper_bounds[idx] <= z:
+                        continue  # No closer center possible
+                    if needs_update:
+                        # Compute the exact distance to the assigned center
+                        upper_bounds[idx] = distance(
+                            X[idx],
+                            cluster_centres[current_center],
+                            metric=self.distance,
+                            **self._distance_params,
+                        )
+                        needs_update = False
+                        if upper_bounds[idx] <= z:
+                            continue  # No closer center possible
+                    # Compute distance to center j
+                    lower_bounds[idx, j] = distance(
+                        X[idx],
+                        cluster_centres[j],
+                        metric=self.distance,
+                        **self._distance_params,
+                    )
+                    if lower_bounds[idx, j] < upper_bounds[idx]:
+                        curr_labels[idx] = j
+                        upper_bounds[idx] = lower_bounds[idx, j]
+                        current_center = j  # Update current_center
+
+            # Compute current inertia using upper bounds (squared distances)
+            curr_inertia = np.sum(upper_bounds**2)
+
+            # Check for empty clusters
+            if np.unique(curr_labels).size < self.n_clusters:
+                # Recompute distances and labels to handle empty clusters
+                curr_pw = pairwise_distance(
+                    X, cluster_centres, metric=self.distance, **self._distance_params
+                )
+                curr_labels = curr_pw.argmin(axis=1)
+                curr_inertia = curr_pw.min(axis=1).sum()
+
+                # Handle empty clusters
+                curr_pw, curr_labels, curr_inertia, cluster_centres = (
+                    self._handle_empty_cluster(
+                        X, cluster_centres, curr_pw, curr_labels, curr_inertia
+                    )
+                )
+
+                # Update upper_bounds based on new assignments
+                upper_bounds = curr_pw[np.arange(n_instances), curr_labels]
+                # Reset lower bounds
+                lower_bounds = np.zeros((n_instances, n_clusters))
+
+            # Verbose output
+            if self.verbose:
+                print(f"{curr_inertia:.3f}", end=" --> ")  # noqa: T001, T201
+
+            # Check for convergence based on change in inertia
+            change_in_inertia = np.abs(prev_inertia - curr_inertia)
+            if change_in_inertia < self.tol:
+                if self.verbose:
+                    print(  # noqa: T001
+                        f"Converged at iteration {i}, inertia {curr_inertia:.3f}."
+                    )
+                break
+
+            prev_inertia = curr_inertia
+
+            # Step 4: Update the centers to be the mean of assigned points
+            new_cluster_centres = np.zeros_like(cluster_centres)
+            counts = np.zeros(n_clusters, dtype=int)
+            for idx in range(n_instances):
+                new_cluster_centres[curr_labels[idx]] += X[idx]
+                counts[curr_labels[idx]] += 1
+
+            # Handle empty clusters (already handled above, but included for completeness)
+            for j in range(n_clusters):
+                new_cluster_centres[j] /= counts[j]
+
+            # Step 5: Compute center shift distances
+            center_shifts = pairwise_distance(
+                cluster_centres,
+                new_cluster_centres,
+                metric=self.distance,
+                **self._distance_params,
+            )
+
+            cluster_centres = new_cluster_centres
+
+            # Step 6: Update upper and lower bounds
+            upper_bounds += center_shifts[curr_labels]
+            for j in range(n_clusters):
+                lower_bounds[:, j] = np.maximum(
+                    lower_bounds[:, j] - center_shifts[j], 0
+                )
+
+            # Additional verbose output
+            if self.verbose:
+                print(f"Iteration {i}, inertia {curr_inertia:.3f}.")  # noqa: T001, T201
+
+        else:
+            if self.verbose:
+                print(  # noqa: T001
+                    f"Reached maximum iterations {self.max_iter}, inertia {curr_inertia:.3f}."
+                )
+
+        return curr_labels, cluster_centres, curr_inertia, i + 1
 
     def _fit_one_init_lloyds(self, X: np.ndarray) -> tuple:
         if isinstance(self._init, Callable):
@@ -451,3 +612,52 @@ class TimeSeriesKMeans(BaseClusterer):
             "random_state": 0,
             "averaging_method": "mean",
         }
+
+
+from numba import njit
+
+
+@njit(cache=True, fastmath=True)
+def _numba_elkan_assignments(
+    X: np.ndarray,
+    cluster_centres: np.ndarray,
+    n_instances,
+    curr_labels,
+    upper_bounds,
+    lower_bounds,
+    center_distances,
+    center_half_min_dist,
+    n_clusters,
+    distance_func,
+):
+    for idx in range(n_instances):
+        current_center = curr_labels[idx]
+        if upper_bounds[idx] <= center_half_min_dist[current_center]:
+            continue  # Current center is sufficiently close
+        needs_update = True
+        for j in range(n_clusters):
+            if j == current_center:
+                continue
+            z = max(lower_bounds[idx, j], 0.5 * center_distances[current_center, j])
+            if upper_bounds[idx] <= z:
+                continue  # No closer center possible
+            if needs_update:
+                # Compute the exact distance to the assigned center
+                upper_bounds[idx] = distance_func(
+                    X[idx],
+                    cluster_centres[current_center],
+                )
+                needs_update = False
+                if upper_bounds[idx] <= z:
+                    continue  # No closer center possible
+            # Compute distance to center j
+            lower_bounds[idx, j] = distance_func(
+                X[idx],
+                cluster_centres[j],
+            )
+            if lower_bounds[idx, j] < upper_bounds[idx]:
+                curr_labels[idx] = j
+                upper_bounds[idx] = lower_bounds[idx, j]
+                current_center = j  # Update current_center
+
+    return curr_labels, upper_bounds, lower_bounds
