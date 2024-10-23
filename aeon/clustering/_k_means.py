@@ -13,7 +13,10 @@ from sklearn.utils import check_random_state
 from aeon.clustering.averaging import VALID_BA_METRICS
 from aeon.clustering.averaging._averaging import _resolve_average_callable
 from aeon.clustering.base import BaseClusterer
-from aeon.distances import distance, pairwise_distance
+
+# from aeon.distances import distance, pairwise_distance
+from aeon.distances import distance as temp_distance
+from aeon.distances import pairwise_distance as temp_pairwise_distance
 
 
 class EmptyClusterError(Exception):
@@ -198,6 +201,7 @@ class TimeSeriesKMeans(BaseClusterer):
         self.average_params = average_params
         self.averaging_method = averaging_method
         self.algorithm = algorithm
+        self.num_distance_calls = 0
 
         self.cluster_centers_ = None
         self.labels_ = None
@@ -212,6 +216,7 @@ class TimeSeriesKMeans(BaseClusterer):
         super().__init__(n_clusters)
 
     def _fit(self, X: np.ndarray, y=None):
+        self.num_distance_calls = 0
         self._check_params(X)
 
         best_centers = None
@@ -247,10 +252,48 @@ class TimeSeriesKMeans(BaseClusterer):
                 "n_init."
             )
 
+        if self.verbose:
+            print(f"Number of distance calls: {self.num_distance_calls}")
+
         self.labels_ = best_labels
         self.inertia_ = best_inertia
         self.cluster_centers_ = best_centers
         self.n_iter_ = best_iters
+
+    def pairwise_distance(
+        self,
+        x: np.ndarray,
+        y: Optional[np.ndarray] = None,
+        metric=None,
+        **kwargs,
+    ) -> np.ndarray:
+        if y is not None:
+            self.num_distance_calls += x.shape[0] * y.shape[0]
+        else:
+            self.num_distance_calls += x.shape[0] * x.shape[0]
+
+        return temp_pairwise_distance(
+            x,
+            y,
+            metric=self.distance,
+            **self._distance_params,
+        )
+
+    def distance_comp(
+        self,
+        x: np.ndarray,
+        y: np.ndarray,
+        metric=None,
+        **kwargs,
+    ) -> np.ndarray:
+        self.num_distance_calls += 1
+
+        return temp_distance(
+            x,
+            y,
+            metric=self.distance,
+            **self._distance_params,
+        )
 
     def _fit_one_init_elkan(self, X: np.ndarray) -> tuple:
         # Initialize the centroids (same as in the Lloyd's method)
@@ -271,7 +314,7 @@ class TimeSeriesKMeans(BaseClusterer):
 
         for i in range(self.max_iter):
             # Step 1: Compute center-center distances using pairwise_distance
-            center_distances = pairwise_distance(
+            center_distances = self.pairwise_distance(
                 cluster_centres,
                 cluster_centres,
                 metric=self.distance,
@@ -316,7 +359,7 @@ class TimeSeriesKMeans(BaseClusterer):
                         continue  # No closer center possible
                     if needs_update:
                         # Compute the exact distance to the assigned center
-                        upper_bounds[idx] = distance(
+                        upper_bounds[idx] = self.distance_comp(
                             X[idx],
                             cluster_centres[current_center],
                             metric=self.distance,
@@ -326,7 +369,7 @@ class TimeSeriesKMeans(BaseClusterer):
                         if upper_bounds[idx] <= z:
                             continue  # No closer center possible
                     # Compute distance to center j
-                    lower_bounds[idx, j] = distance(
+                    lower_bounds[idx, j] = self.distance_comp(
                         X[idx],
                         cluster_centres[j],
                         metric=self.distance,
@@ -343,7 +386,7 @@ class TimeSeriesKMeans(BaseClusterer):
             # Check for empty clusters
             if np.unique(curr_labels).size < self.n_clusters:
                 # Recompute distances and labels to handle empty clusters
-                curr_pw = pairwise_distance(
+                curr_pw = self.pairwise_distance(
                     X, cluster_centres, metric=self.distance, **self._distance_params
                 )
                 curr_labels = curr_pw.argmin(axis=1)
@@ -388,20 +431,18 @@ class TimeSeriesKMeans(BaseClusterer):
                 new_cluster_centres[j] /= counts[j]
 
             # Step 5: Compute center shift distances
-            # center_shifts = pairwise_distance(
-            #     cluster_centres,
-            #     new_cluster_centres,
-            #     metric=self.distance,
-            #     **self._distance_params,
-            # )
-            center_shifts = np.array([
-                distance(
-                    cluster_centres[j],
-                    new_cluster_centres[j],
-                    metric=self.distance,
-                    **self._distance_params
-                ) for j in range(n_clusters)
-            ])
+            # center_shifts = _compute_diag_dist(X, cluster_centres, new_cluster_centres, n_clusters, twe_distance)
+            center_shifts = np.array(
+                [
+                    self.distance_comp(
+                        cluster_centres[j],
+                        new_cluster_centres[j],
+                        metric=self.distance,
+                        **self._distance_params,
+                    )
+                    for j in range(n_clusters)
+                ]
+            )
 
             cluster_centres = new_cluster_centres
 
@@ -419,7 +460,7 @@ class TimeSeriesKMeans(BaseClusterer):
         else:
             if self.verbose:
                 print(  # noqa: T001
-                    f"Reached maximum iterations {self.max_iter}, inertia {curr_inertia:.3f}."
+                    f"Reached maximum iterations {self.max_iter}, inertia {curr_inertia:.5f}."
                 )
 
         return curr_labels, cluster_centres, curr_inertia, i + 1
@@ -432,7 +473,7 @@ class TimeSeriesKMeans(BaseClusterer):
         prev_inertia = np.inf
         prev_labels = None
         for i in range(self.max_iter):
-            curr_pw = pairwise_distance(
+            curr_pw = self.pairwise_distance(
                 X, cluster_centres, metric=self.distance, **self._distance_params
             )
             curr_labels = curr_pw.argmin(axis=1)
@@ -454,6 +495,9 @@ class TimeSeriesKMeans(BaseClusterer):
             prev_labels = curr_labels
 
             if change_in_centres < self.tol:
+                print(  # noqa: T001
+                    f"Converged at iteration {i}, inertia {curr_inertia:.5f}."
+                )
                 break
 
             # Compute new cluster centres
@@ -472,11 +516,11 @@ class TimeSeriesKMeans(BaseClusterer):
 
     def _predict(self, X: np.ndarray, y=None) -> np.ndarray:
         if isinstance(self.distance, str):
-            pairwise_matrix = pairwise_distance(
+            pairwise_matrix = self.pairwise_distance(
                 X, self.cluster_centers_, metric=self.distance, **self._distance_params
             )
         else:
-            pairwise_matrix = pairwise_distance(
+            pairwise_matrix = self.pairwise_distance(
                 X,
                 self.cluster_centers_,
                 metric=self.distance,
@@ -545,7 +589,7 @@ class TimeSeriesKMeans(BaseClusterer):
         indexes = [initial_center_idx]
 
         for _ in range(1, self.n_clusters):
-            pw_dist = pairwise_distance(
+            pw_dist = self.pairwise_distance(
                 X, X[indexes], metric=self.distance, **self._distance_params
             )
             min_distances = pw_dist.min(axis=1)
@@ -580,7 +624,7 @@ class TimeSeriesKMeans(BaseClusterer):
             current_empty_cluster_index = empty_clusters[0]
             index_furthest_from_centre = curr_pw.min(axis=1).argmax()
             cluster_centres[current_empty_cluster_index] = X[index_furthest_from_centre]
-            curr_pw = pairwise_distance(
+            curr_pw = self.pairwise_distance(
                 X, cluster_centres, metric=self.distance, **self._distance_params
             )
             curr_labels = curr_pw.argmin(axis=1)
@@ -623,6 +667,14 @@ class TimeSeriesKMeans(BaseClusterer):
 
 
 from numba import njit
+
+
+@njit(cache=True, fastmath=True)
+def _compute_diag_dist(X, cluster_centres, new_cluster_centres, n_clusters, dist_func):
+    dists = np.zeros(n_clusters)
+    for i in range(n_clusters):
+        dists[i] = dist_func(cluster_centres[i], new_cluster_centres[i])
+    return dists
 
 
 @njit(cache=True, fastmath=True)

@@ -1,3 +1,4 @@
+"""Temp kmeans script."""
 import time
 
 import numpy as np
@@ -14,7 +15,7 @@ if __name__ == "__main__":
 
     n_clusters = len(set(list(y_train)))
     distance = "euclidean"
-    verbose = False
+    verbose = True
 
     clst = TimeSeriesKMeans(
         n_clusters=n_clusters,
@@ -31,6 +32,7 @@ if __name__ == "__main__":
     clst.fit(X_train)
     end = time.time()
     print("Time to fit with Elkan: ", end - start)
+    print("Elkan Number of distance calls: ", clst.num_distance_calls)
 
     elkan_labels = clst.labels_
     print("Num clusters", len(set(elkan_labels)))
@@ -50,6 +52,7 @@ if __name__ == "__main__":
     clst.fit(X_train)
     end = time.time()
     print("Time to fit with Lloyds: ", end - start)
+    print("Lloyds Number of distance calls: ", clst.num_distance_calls)
 
     lloyds_labels = clst.labels_
 
