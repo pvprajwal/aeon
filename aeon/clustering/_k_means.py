@@ -388,12 +388,20 @@ class TimeSeriesKMeans(BaseClusterer):
                 new_cluster_centres[j] /= counts[j]
 
             # Step 5: Compute center shift distances
-            center_shifts = pairwise_distance(
-                cluster_centres,
-                new_cluster_centres,
-                metric=self.distance,
-                **self._distance_params,
-            )
+            # center_shifts = pairwise_distance(
+            #     cluster_centres,
+            #     new_cluster_centres,
+            #     metric=self.distance,
+            #     **self._distance_params,
+            # )
+            center_shifts = np.array([
+                distance(
+                    cluster_centres[j],
+                    new_cluster_centres[j],
+                    metric=self.distance,
+                    **self._distance_params
+                ) for j in range(n_clusters)
+            ])
 
             cluster_centres = new_cluster_centres
 
