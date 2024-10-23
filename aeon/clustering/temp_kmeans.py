@@ -1,4 +1,5 @@
 """Temp kmeans script."""
+
 import time
 
 import numpy as np
@@ -10,22 +11,29 @@ from aeon.testing.data_generation import make_example_3d_numpy
 
 if __name__ == "__main__":
 
-    X_train, y_train = load_acsf1(split="train")
-    # X_train = make_example_3d_numpy(n_cases=1000, n_channels=1, n_timepoints=1000, return_y=False)
-
+    # X_train, y_train = load_acsf1(split="train")
+    X_train, y_train = load_gunpoint(split="train")
     n_clusters = len(set(list(y_train)))
-    distance = "euclidean"
+    # X_train = make_example_3d_numpy(n_cases=100, n_channels=1, n_timepoints=100, return_y=False)
+    # n_clusters = 5
+    max_iters = 20
+    distance_params = {"window": 0.2}
+
+    distance = "twe"
+    averaging_method = "mean"
     verbose = True
 
     clst = TimeSeriesKMeans(
         n_clusters=n_clusters,
         distance=distance,
         n_init=1,
-        max_iter=300,
+        max_iter=max_iters,
         random_state=0,
-        averaging_method="mean",
+        averaging_method=averaging_method,
         algorithm="elkan",
         verbose=verbose,
+        distance_params=distance_params,
+        average_params=distance_params,
     )
 
     start = time.time()
@@ -41,11 +49,13 @@ if __name__ == "__main__":
         n_clusters=n_clusters,
         distance=distance,
         n_init=1,
-        max_iter=300,
+        max_iter=max_iters,
         random_state=0,
-        averaging_method="mean",
+        averaging_method=averaging_method,
         algorithm="lloyds",
         verbose=verbose,
+        distance_params=distance_params,
+        average_params=distance_params,
     )
 
     start = time.time()
@@ -56,8 +66,8 @@ if __name__ == "__main__":
 
     lloyds_labels = clst.labels_
 
-    print("Eklan ARI: ", adjusted_rand_score(y_train, elkan_labels))
-    print("Lloyds ARI: ", adjusted_rand_score(y_train, lloyds_labels))
+    # print("Eklan ARI: ", adjusted_rand_score(y_train, elkan_labels))
+    # print("Lloyds ARI: ", adjusted_rand_score(y_train, lloyds_labels))
 
     # print("Elkan labels: ", elkan_labels)
     # print("Lloyds labels: ", lloyds_labels)

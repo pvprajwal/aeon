@@ -230,6 +230,8 @@ class TimeSeriesKMeans(BaseClusterer):
                     labels, centers, inertia, n_iters = self._fit_one_init_lloyds(X)
                 elif self.algorithm == "elkan":
                     labels, centers, inertia, n_iters = self._fit_one_init_elkan(X)
+                elif self.algorithm == "tony-elkan":
+                    labels, centers, inertia, n_iters = self._fit_one_init_tony(X)
                 else:
                     raise ValueError(
                         "Invalid algorithm specified. Must be 'lloyds' or 'elkan'"
@@ -295,6 +297,9 @@ class TimeSeriesKMeans(BaseClusterer):
             **self._distance_params,
         )
 
+    def _fit_one_init_tony(self, X: np.ndarray) -> tuple:
+        raise NotImplementedError("Tony's elkan not implemented yet.")
+
     def _fit_one_init_elkan(self, X: np.ndarray) -> tuple:
         # Initialize the centroids (same as in the Lloyd's method)
         n_instances, n_channels, n_timepoints = X.shape
@@ -327,23 +332,6 @@ class TimeSeriesKMeans(BaseClusterer):
             )
 
             # Step 3: Assignment step with bounds
-
-            # if self.distance == "euclidean":
-            #     distance_func = _euclidean_distance
-            # else:
-            #     distance_func = twe_distance
-            # curr_labels, upper_bounds, lower_bounds = _numba_elkan_assignments(
-            #     X,
-            #     cluster_centres,
-            #     n_instances,
-            #     curr_labels,
-            #     upper_bounds,
-            #     lower_bounds,
-            #     center_distances,
-            #     center_half_min_dist,
-            #     n_clusters,
-            #     distance_func
-            # )
             for idx in range(n_instances):
                 current_center = curr_labels[idx]
                 if upper_bounds[idx] <= center_half_min_dist[current_center]:
@@ -381,7 +369,7 @@ class TimeSeriesKMeans(BaseClusterer):
                         current_center = j  # Update current_center
 
             # Compute current inertia using upper bounds (squared distances)
-            curr_inertia = np.sum(upper_bounds**2)
+            curr_inertia = np.sum(upper_bounds ** 2)
 
             # Check for empty clusters
             if np.unique(curr_labels).size < self.n_clusters:
@@ -406,32 +394,28 @@ class TimeSeriesKMeans(BaseClusterer):
 
             # Verbose output
             if self.verbose:
-                print(f"{curr_inertia:.3f}", end=" --> ")  # noqa: T001, T201
+                print(f"{curr_inertia:.3f}", end=" --> ")
 
             # Check for convergence based on change in inertia
             change_in_inertia = np.abs(prev_inertia - curr_inertia)
             if change_in_inertia < self.tol:
                 if self.verbose:
-                    print(  # noqa: T001
+                    print(
                         f"Converged at iteration {i}, inertia {curr_inertia:.3f}."
                     )
                 break
 
             prev_inertia = curr_inertia
 
-            # Step 4: Update the centers to be the mean of assigned points
+            # Step 4: Update the centers using the averaging method
             new_cluster_centres = np.zeros_like(cluster_centres)
-            counts = np.zeros(n_clusters, dtype=int)
-            for idx in range(n_instances):
-                new_cluster_centres[curr_labels[idx]] += X[idx]
-                counts[curr_labels[idx]] += 1
-
-            # Handle empty clusters (already handled above, but included for completeness)
             for j in range(n_clusters):
-                new_cluster_centres[j] /= counts[j]
+                assigned_points = X[curr_labels == j]
+                new_cluster_centres[j] = self._averaging_method(
+                    assigned_points, **self._average_params
+                )
 
             # Step 5: Compute center shift distances
-            # center_shifts = _compute_diag_dist(X, cluster_centres, new_cluster_centres, n_clusters, twe_distance)
             center_shifts = np.array(
                 [
                     self.distance_comp(
@@ -455,11 +439,11 @@ class TimeSeriesKMeans(BaseClusterer):
 
             # Additional verbose output
             if self.verbose:
-                print(f"Iteration {i}, inertia {curr_inertia:.3f}.")  # noqa: T001, T201
+                print(f"Iteration {i}, inertia {curr_inertia:.3f}.")
 
         else:
             if self.verbose:
-                print(  # noqa: T001
+                print(
                     f"Reached maximum iterations {self.max_iter}, inertia {curr_inertia:.5f}."
                 )
 
