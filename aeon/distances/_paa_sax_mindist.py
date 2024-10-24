@@ -80,9 +80,9 @@ def _univariate_PAA_SAX_distance(
             br_lower = breakpoints[y_sax[i] - 1]
 
         if br_lower > x_paa[i]:
-            dist += n_split[i].shape[0] * (br_lower - x_paa[i]) ** 2
+            dist += n_split[i].shape[0] * ((br_lower - x_paa[i]) ** 2)
         elif br_upper < x_paa[i]:
-            dist += n_split[i].shape[0] * (x_paa[i] - br_upper) ** 2
+            dist += n_split[i].shape[0] * ((x_paa[i] - br_upper) ** 2)
 
     return np.sqrt(dist)
 

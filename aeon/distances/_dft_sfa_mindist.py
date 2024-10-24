@@ -68,7 +68,7 @@ def _univariate_DFT_SFA_distance(
     x_dft: np.ndarray, y_sfa: np.ndarray, breakpoints: np.ndarray
 ) -> float:
     dist = 0.0
-    for i in range(x_dft.shape[0]):
+    for i in np.arange(x_dft.shape[0], dtype=np.int32):
         if y_sfa[i] >= breakpoints.shape[-1]:
             br_upper = np.inf
         else:
