@@ -5,13 +5,16 @@ from typing import Optional, Union
 import numpy as np
 
 from aeon.clustering.averaging._ba_petitjean import petitjean_barycenter_average
+from aeon.clustering.averaging._ba_random_subset_ssg import (
+    random_subset_ssg_barycenter_average,
+)
 from aeon.clustering.averaging._ba_subgradient import subgradient_barycenter_average
 
 
 def elastic_barycenter_average(
     X: np.ndarray,
     distance: str = "dtw",
-    max_iters: int = 30,
+    max_iters: int = 50,
     tol: float = 1e-5,
     init_barycenter: Union[np.ndarray, str] = "mean",
     method: str = "petitjean",
@@ -21,6 +24,7 @@ def elastic_barycenter_average(
     precomputed_medoids_pairwise_distance: Optional[np.ndarray] = None,
     verbose: bool = False,
     random_state: Optional[int] = None,
+    ba_subset_size: float = 1.0,
     **kwargs,
 ) -> np.ndarray:
     """Compute the barycenter average of time series using a elastic distance.
@@ -83,6 +87,9 @@ def elastic_barycenter_average(
         Boolean that controls the verbosity.
     random_state: int or None, default=None
         Random state to use for the barycenter averaging.
+    ba_subset_size: float, default=1.0
+        The proportion of the dataset to use for the barycenter averaging. If set to 1.0
+        the full dataset will be used.
     **kwargs
         Keyword arguments to pass to the distance metric.
 
@@ -100,6 +107,8 @@ def elastic_barycenter_average(
        for Averaging in Dynamic Time Warping Spaces.
        Pattern Recognition, 74, 340-358.
     """
+    if X.shape[0] == 1:
+        return X[0]
     if method == "petitjean":
         return petitjean_barycenter_average(
             X,
@@ -128,8 +137,24 @@ def elastic_barycenter_average(
             random_state=random_state,
             **kwargs,
         )
+    elif method == "random-subset-ssg":
+        return random_subset_ssg_barycenter_average(
+            X,
+            distance=distance,
+            max_iters=max_iters,
+            ba_subset_size=ba_subset_size,
+            tol=tol,
+            init_barycenter=init_barycenter,
+            initial_step_size=initial_step_size,
+            final_step_size=final_step_size,
+            weights=weights,
+            precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
+            verbose=verbose,
+            random_state=random_state,
+            **kwargs,
+        )
     else:
         raise ValueError(
             f"Invalid method: {method}. Please use one of the following: "
-            f"['petitjean', 'subgradient']"
+            f"['petitjean', 'subgradient', 'random-subset-ssg']"
         )

@@ -8,9 +8,10 @@ from aeon.clustering.averaging._ba_utils import (
     _get_alignment_path,
     _get_init_barycenter,
 )
+from aeon.distances import distance as distance_callable
 
 
-def subgradient_barycenter_average(
+def random_subset_ssg_barycenter_average(
     X: np.ndarray,
     distance: str = "dtw",
     max_iters: int = 30,
@@ -18,17 +19,16 @@ def subgradient_barycenter_average(
     init_barycenter: Union[np.ndarray, str] = "mean",
     initial_step_size: float = 0.05,
     final_step_size: float = 0.005,
-    weights: Optional[np.ndarray] = None,
     precomputed_medoids_pairwise_distance: Optional[np.ndarray] = None,
     verbose: bool = False,
     random_state: Optional[int] = None,
+    ba_subset_size: float = 1.0,
     **kwargs,
 ) -> np.ndarray:
-    """Compute the stochastic subgradient barycenter average of time series.
+    """Compute the random subset ssg barycenter average of time series.
 
     Stochastic subgradient is much faster than petitjean, however, it is not guaranteed
     to find the optimal solution.
-
     This implements a stochastic subgradient DBA algorithm. This changes how
     the average is computed. Unlike traditional methods, it calculates a subgradient
     based on each individual time series within the dataset. The barycenter is then
@@ -69,6 +69,9 @@ def subgradient_barycenter_average(
         Boolean that controls the verbosity.
     random_state: int or None, default=None
         Random state to use for the barycenter averaging.
+    ba_subset_size: float, default=1.0
+        The proportion of the dataset to use for the barycenter averaging. If set to 1.0
+        the full dataset will be used.
     **kwargs
         Keyword arguments to pass to the distance metric.
 
@@ -96,9 +99,7 @@ def subgradient_barycenter_average(
     else:
         raise ValueError("X must be a 2D or 3D array")
 
-    if weights is None:
-        weights = np.ones(len(_X))
-
+    # Get the initial centre that is the mean
     barycenter = _get_init_barycenter(
         _X,
         init_barycenter,
@@ -118,12 +119,15 @@ def subgradient_barycenter_average(
 
     current_step_size = initial_step_size
     X_size = _X.shape[0]
-
+    num_ts_to_use = min(X_size, max(10, int(ba_subset_size * X_size)))
     prev_barycenter = np.copy(barycenter)
-
+    # Loop up to 30 times
     for i in range(max_iters):
-        shuffled_indices = random_state.permutation(X_size)
-        barycenter, cost, current_step_size = _ba_one_iter_subgradient(
+        # Randomly order the dataset
+        shuffled_indices = random_state.permutation(X_size)[:num_ts_to_use]
+        # It then warps all onto centre to get the Fretchet distance
+        # Updating the barycenter every iteration based on the warping
+        barycenter, old_cost, current_step_size = _ba_one_iter_random_subset_ssg(
             barycenter,
             _X,
             shuffled_indices,
@@ -131,10 +135,19 @@ def subgradient_barycenter_average(
             initial_step_size,
             final_step_size,
             current_step_size,
-            weights,
             i,
             **kwargs,
         )
+
+        cost = 0
+        for j in range(X_size):
+            cost += distance_callable(
+                barycenter,
+                _X[j],
+                metric=distance,
+                **kwargs,
+            )
+        # Cost is the sum of distance to the centre
         if abs(cost_prev - cost) < tol:
             if cost_prev < cost:
                 cost = cost_prev
@@ -149,15 +162,16 @@ def subgradient_barycenter_average(
             cost_prev = cost
 
         if verbose:
-            print(f"[SSG-BA] epoch {i}, cost {cost}")  # noqa: T001, T201
+            print(f"[Subset-SSG-BA] epoch {i}, cost {cost}")  # noqa: T001, T201
 
     if verbose:
-        print(f"[SSG-BA] epoch {max_iters}, cost {cost}")  # noqa: T001, T201
+        print(f"[Subset-SSG-BA] epoch {max_iters}, cost {cost}")  # noqa: T001, T201
+
     return barycenter
 
 
 @njit(cache=True, fastmath=True)
-def _ba_one_iter_subgradient(
+def _ba_one_iter_random_subset_ssg(
     barycenter: np.ndarray,
     X: np.ndarray,
     shuffled_indices: np.ndarray,
@@ -165,7 +179,6 @@ def _ba_one_iter_subgradient(
     initial_step_size: float = 0.05,
     final_step_size: float = 0.005,
     current_step_size: float = 0.05,
-    weights: Optional[np.ndarray] = None,
     iteration: int = 0,
     window: Union[float, None] = None,
     g: float = 0.0,
@@ -180,7 +193,6 @@ def _ba_one_iter_subgradient(
     transformation_precomputed: bool = False,
     transformed_x: Optional[np.ndarray] = None,
     transformed_y: Optional[np.ndarray] = None,
-    gamma: float = 1.0,
 ):
 
     X_size, X_dims, X_timepoints = X.shape
@@ -211,15 +223,31 @@ def _ba_one_iter_subgradient(
             transformation_precomputed,
             transformed_x,
             transformed_y,
-            gamma,
         )
 
         new_ba = np.zeros((X_dims, X_timepoints))
         for j, k in curr_alignment:
             new_ba[:, k] += barycenter_copy[:, k] - curr_ts[:, j]
 
-        barycenter_copy -= (2.0 * current_step_size) * new_ba * weights[i]
+        barycenter_copy -= (2.0 * current_step_size) * new_ba
 
         current_step_size -= step_size_reduction
-        cost = curr_cost * weights[i]
+        cost = curr_cost
     return barycenter_copy, cost, current_step_size
+
+
+if __name__ == "__main__":
+    from aeon.clustering.averaging import elastic_barycenter_average
+    from aeon.testing.data_generation import make_example_3d_numpy
+
+    X_train = make_example_3d_numpy(20, 2, 10, random_state=1, return_y=False)
+    distance = "dtw"
+
+    holdit_ts = elastic_barycenter_average(
+        X_train,
+        distance=distance,
+        window=0.2,
+        independent=False,
+        method="holdit_stopping",
+        holdit_num_ts_to_use_percentage=0.8,
+    )

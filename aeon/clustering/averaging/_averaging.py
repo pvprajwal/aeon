@@ -25,8 +25,8 @@ def mean_average(X: np.ndarray, **kwargs) -> np.ndarray:
     np.ndarray (2d array of shape (n_channels, n_timepoints)
         The time series that is the mean.
     """
-    if X.shape[0] <= 1:
-        return X
+    if X.shape[0] == 1:
+        return X[0]
     return X.mean(axis=0)
 
 

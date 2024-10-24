@@ -129,6 +129,7 @@ def _ba_one_iter_petitjean(
     transformation_precomputed: bool = False,
     transformed_x: Optional[np.ndarray] = None,
     transformed_y: Optional[np.ndarray] = None,
+    gamma: float = 1.0,
 ) -> tuple[np.ndarray, float]:
     X_size, X_dims, X_timepoints = X.shape
     sum = np.zeros(X_timepoints)
@@ -153,6 +154,7 @@ def _ba_one_iter_petitjean(
             transformation_precomputed,
             transformed_x,
             transformed_y,
+            gamma,
         )
 
         for j, k in curr_alignment:
