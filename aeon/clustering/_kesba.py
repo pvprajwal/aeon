@@ -161,6 +161,11 @@ class KESBA(BaseClusterer):
         self.distance_params = distance_params
         self.algorithm = algorithm
         self.num_distance_calls = 0
+        self.skip1=0
+        self.skip2 = 0
+        self.skip3 = 0
+        self.skip4 = 0
+
         self.window = window
         self.ba_subset_size = ba_subset_size
         self.averaging_method = averaging_method
@@ -418,15 +423,18 @@ class KESBA(BaseClusterer):
             for idx in range(n_instances):
                 current_center = curr_labels[idx]
                 if upper_bounds[idx] <= center_half_min_dist[current_center]:
+                    self.skip1 += 1
                     continue  # Current center is sufficiently close
                 needs_update = True
                 for j in range(n_clusters):
                     if j == current_center:
+                        self.skip2 += 1
                         continue
                     z = max(
                         lower_bounds[idx, j], 0.5 * center_distances[current_center, j]
                     )
                     if upper_bounds[idx] <= z:
+                        self.skip3 += 1
                         continue  # No closer center possible
                     if needs_update:
                         # Compute the exact distance to the assigned center
@@ -446,6 +454,7 @@ class KESBA(BaseClusterer):
                         metric=self.distance,
                         **self._distance_params,
                     )
+                    self.skip4 += 1
                     if lower_bounds[idx, j] < upper_bounds[idx]:
                         curr_labels[idx] = j
                         upper_bounds[idx] = lower_bounds[idx, j]

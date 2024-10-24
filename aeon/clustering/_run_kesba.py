@@ -11,12 +11,12 @@ from aeon.testing.data_generation import make_example_3d_numpy
 
 if __name__ == "__main__":
 
-    # X_train, y_train = load_acsf1(split="train")
-    X_train, y_train = load_gunpoint(split="train")
+    X_train, y_train = load_acsf1(split="train")
+    #X_train, y_train = load_gunpoint(split="train")
     n_clusters = len(set(list(y_train)))
     # X_train = make_example_3d_numpy(n_cases=100, n_channels=1, n_timepoints=100, return_y=False)
     # n_clusters = 5
-    max_iters = 20
+    max_iters = 1
     window = 0.2
     ba_subset_size = 0.2
 
@@ -41,6 +41,8 @@ if __name__ == "__main__":
     end = time.time()
     print("Time to fit with Elkan: ", end - start)
     print("Elkan Number of distance calls: ", clst.num_distance_calls)
+    print("Skip 1 ",clst.skip1," skip 2 =",clst.skip2," skip 3 = ", clst.skip3,
+          " skip 4 = ", clst.skip4)
 
     elkan_labels = clst.labels_
     print("Num clusters", len(set(elkan_labels)))
