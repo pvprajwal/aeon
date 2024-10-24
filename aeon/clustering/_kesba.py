@@ -489,19 +489,13 @@ class KESBA(BaseClusterer):
                 print(f"{curr_inertia:.3f}", end=" --> ")
 
             # Check for convergence based on change in inertia
-            same_labels_stopping_condition = np.array_equal(prev_labels, curr_labels)
-
-            # Break here if the previous centres were better
-            if same_labels_stopping_condition:
-                if prev_inertia < curr_inertia:
-                    break
-
-            change_in_centres = np.abs(prev_inertia - curr_inertia)
-            prev_inertia = curr_inertia
-            prev_labels = curr_labels
-
-            if change_in_centres < self.tol:
+            change_in_inertia = np.abs(prev_inertia - curr_inertia)
+            if change_in_inertia < self.tol:
+                if self.verbose:
+                    print(f"Converged at iteration {i}, inertia {curr_inertia:.3f}.")
                 break
+
+            prev_inertia = curr_inertia
 
             # Step 4: Update the centers using the averaging method
             new_cluster_centres = np.zeros_like(cluster_centres)
@@ -570,18 +564,14 @@ class KESBA(BaseClusterer):
             if self.verbose:
                 print("%.3f" % curr_inertia, end=" --> ")  # noqa: T001, T201
 
-            same_labels_stopping_condition = np.array_equal(prev_labels, curr_labels)
-
-            # Break here if the previous centres were better
-            if same_labels_stopping_condition:
-                if prev_inertia < curr_inertia:
-                    break
-
             change_in_centres = np.abs(prev_inertia - curr_inertia)
             prev_inertia = curr_inertia
             prev_labels = curr_labels
 
             if change_in_centres < self.tol:
+                print(  # noqa: T001
+                    f"Converged at iteration {i}, inertia {curr_inertia:.5f}."
+                )
                 break
 
             # Compute new cluster centres

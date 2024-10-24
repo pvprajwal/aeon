@@ -23,6 +23,7 @@ def random_subset_ssg_barycenter_average(
     verbose: bool = False,
     random_state: Optional[int] = None,
     ba_subset_size: float = 1.0,
+    return_distances: bool = False,
     **kwargs,
 ) -> np.ndarray:
     """Compute the random subset ssg barycenter average of time series.
@@ -123,6 +124,7 @@ def random_subset_ssg_barycenter_average(
     X_size = _X.shape[0]
     num_ts_to_use = min(X_size, max(1, int(ba_subset_size * X_size)))
     prev_barycenter = np.copy(barycenter)
+    prev_distances = np.zeros(X_size)
     # Loop up to 30 times
     for i in range(max_iters):
         # Randomly order the dataset
@@ -142,32 +144,43 @@ def random_subset_ssg_barycenter_average(
         )
 
         cost = 0
+        distances = np.zeros(X_size)
         for j in range(X_size):
-            cost += distance_callable(
+            curr = distance_callable(
                 barycenter,
                 _X[j],
                 metric=distance,
                 **kwargs,
             )
+            distances[j] = curr
+            cost += curr
+
         # Cost is the sum of distance to the centre
         if abs(cost_prev - cost) < tol:
             if cost_prev < cost:
                 cost = cost_prev
                 barycenter = prev_barycenter
+                distances = prev_distances
             break
         elif cost_prev < cost:
             cost = cost_prev
             barycenter = prev_barycenter
+            distances = prev_distances
             break
         else:
             prev_barycenter = barycenter
             cost_prev = cost
+            prev_distances = distances
 
         if verbose:
             print(f"[Subset-SSG-BA] epoch {i}, cost {cost}")  # noqa: T001, T201
 
     if verbose:
         print(f"[Subset-SSG-BA] epoch {max_iters}, cost {cost}")  # noqa: T001, T201
+
+
+    if return_distances:
+        return barycenter, distances
 
     return barycenter
 

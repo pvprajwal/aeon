@@ -19,6 +19,7 @@ def petitjean_barycenter_average(
     precomputed_medoids_pairwise_distance: Optional[np.ndarray] = None,
     verbose: bool = False,
     random_state: Optional[int] = None,
+    return_distances: bool = False,
     **kwargs,
 ) -> np.ndarray:
     """Compute the barycenter average of time series using a elastic distance.
@@ -95,7 +96,7 @@ def petitjean_barycenter_average(
         if "g" not in kwargs:
             kwargs["g"] = 0.05
     for i in range(max_iters):
-        barycenter, cost = _ba_one_iter_petitjean(
+        barycenter, cost, distances = _ba_one_iter_petitjean(
             barycenter, _X, distance, weights, **kwargs
         )
         if abs(cost_prev - cost) < tol:
@@ -107,6 +108,9 @@ def petitjean_barycenter_average(
 
         if verbose:
             print(f"[DBA] epoch {i}, cost {cost}")  # noqa: T001, T201
+
+    if return_distances:
+        return barycenter, distances
     return barycenter
 
 
@@ -130,11 +134,12 @@ def _ba_one_iter_petitjean(
     transformed_x: Optional[np.ndarray] = None,
     transformed_y: Optional[np.ndarray] = None,
     gamma: float = 1.0,
-) -> tuple[np.ndarray, float]:
+) -> tuple[np.ndarray, float, np.ndarray]:
     X_size, X_dims, X_timepoints = X.shape
     sum = np.zeros(X_timepoints)
     alignment = np.zeros((X_dims, X_timepoints))
     cost = 0.0
+    distances = np.zeros(X_size)
     for i in range(X_size):
         curr_ts = X[i]
         curr_alignment, curr_cost = _get_alignment_path(
@@ -156,10 +161,11 @@ def _ba_one_iter_petitjean(
             transformed_y,
             gamma,
         )
+        distances[i] = curr_cost
 
         for j, k in curr_alignment:
             alignment[:, k] += curr_ts[:, j] * weights[i]
             sum[k] += 1 * weights[i]
         cost += curr_cost * weights[i]
 
-    return alignment / sum, cost
+    return alignment / sum, cost, distances
