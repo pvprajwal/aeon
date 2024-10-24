@@ -6,6 +6,10 @@ from typing import Callable, Union
 
 import numpy as np
 
+from aeon.clustering.averaging._ba_random_subset_ssg import (
+    random_subset_ssg_barycenter_average,
+)
+from aeon.clustering.averaging._ba_subgradient import subgradient_barycenter_average
 from aeon.clustering.averaging._barycenter_averaging import elastic_barycenter_average
 from aeon.clustering.averaging._shift_scale_invariant_averaging import (
     shift_invariant_average,
@@ -33,6 +37,8 @@ def mean_average(X: np.ndarray, **kwargs) -> np.ndarray:
 _AVERAGE_DICT = {
     "mean": mean_average,
     "ba": elastic_barycenter_average,
+    "ssg": subgradient_barycenter_average,
+    "random_subset_ssg": random_subset_ssg_barycenter_average,
     "shift_scale": shift_invariant_average,
 }
 

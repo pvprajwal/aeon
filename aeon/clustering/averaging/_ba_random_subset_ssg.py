@@ -119,7 +119,7 @@ def random_subset_ssg_barycenter_average(
 
     current_step_size = initial_step_size
     X_size = _X.shape[0]
-    num_ts_to_use = min(X_size, max(10, int(ba_subset_size * X_size)))
+    num_ts_to_use = min(X_size, max(1, int(ba_subset_size * X_size)))
     prev_barycenter = np.copy(barycenter)
     # Loop up to 30 times
     for i in range(max_iters):

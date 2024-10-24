@@ -17,11 +17,11 @@ if __name__ == "__main__":
     # X_train = make_example_3d_numpy(n_cases=100, n_channels=1, n_timepoints=100, return_y=False)
     # n_clusters = 5
     max_iters = 20
-    window = 0.5
-    ba_subset_size = 0.5
+    window = 0.2
+    ba_subset_size = 0.2
 
     distance = "twe"
-    averaging_method = "mean"
+    averaging_method = "random_subset_ssg"
     verbose = True
 
     clst = KESBA(

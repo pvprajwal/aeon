@@ -140,7 +140,7 @@ class KESBA(BaseClusterer):
         distance: Union[str, Callable] = "msm",
         ba_subset_size: float = 0.5,
         window: float = 0.5,
-        averaging_method: str = "ba_random_subset_ssg",
+        averaging_method: str = "random_subset_ssg",
         # n_init: int = 10,
         max_iter: int = 300,
         tol: float = 1e-6,
@@ -278,6 +278,7 @@ class KESBA(BaseClusterer):
         lower_bounds = np.zeros((n_instances, n_clusters))
 
         prev_inertia = np.inf
+        prev_labels = None
 
         for i in range(self.max_iter):
             # Step 1: Compute center-center distances using pairwise_distance
@@ -359,13 +360,19 @@ class KESBA(BaseClusterer):
                 print(f"{curr_inertia:.3f}", end=" --> ")
 
             # Check for convergence based on change in inertia
-            change_in_inertia = np.abs(prev_inertia - curr_inertia)
-            if change_in_inertia < self.tol:
-                if self.verbose:
-                    print(f"Converged at iteration {i}, inertia {curr_inertia:.3f}.")
-                break
+            same_labels_stopping_condition = np.array_equal(prev_labels, curr_labels)
 
+            # Break here if the previous centres were better
+            if same_labels_stopping_condition:
+                if prev_inertia < curr_inertia:
+                    break
+
+            change_in_centres = np.abs(prev_inertia - curr_inertia)
             prev_inertia = curr_inertia
+            prev_labels = curr_labels
+
+            if change_in_centres < self.tol:
+                break
 
             # Step 4: Update the centers using the averaging method
             new_cluster_centres = np.zeros_like(cluster_centres)
@@ -434,14 +441,18 @@ class KESBA(BaseClusterer):
             if self.verbose:
                 print("%.3f" % curr_inertia, end=" --> ")  # noqa: T001, T201
 
+            same_labels_stopping_condition = np.array_equal(prev_labels, curr_labels)
+
+            # Break here if the previous centres were better
+            if same_labels_stopping_condition:
+                if prev_inertia < curr_inertia:
+                    break
+
             change_in_centres = np.abs(prev_inertia - curr_inertia)
             prev_inertia = curr_inertia
             prev_labels = curr_labels
 
             if change_in_centres < self.tol:
-                print(  # noqa: T001
-                    f"Converged at iteration {i}, inertia {curr_inertia:.5f}."
-                )
                 break
 
             # Compute new cluster centres
