@@ -260,7 +260,126 @@ class KESBA(BaseClusterer):
         )
 
     def _fit_one_init_tony(self, X: np.ndarray) -> tuple:
-        raise NotImplementedError("Tony's elkan not implemented yet.")
+        # Initialize the centroids (same as in the Lloyd's method)
+        n_instances, n_channels, n_timepoints = X.shape
+
+        if isinstance(self._init, Callable):
+            cluster_centres = self._init(X)
+        else:
+            cluster_centres = self._init.copy()
+
+        n_clusters = cluster_centres.shape[0]
+        # Initialize labels, upper bounds, lower bounds
+        curr_labels = np.zeros(n_instances, dtype=int)
+        upper_bounds = np.full(n_instances, np.inf)
+        lower_bounds = np.zeros((n_instances, n_clusters))
+
+        prev_inertia = np.inf
+        prev_labels = None
+
+        for i in range(self.max_iter):
+
+            p = np.zeros(X.shape[0])
+            C = cluster_centres
+            labs = curr_labels
+            # Step 1: Compute center-center distances using pairwise_distance
+            center_distances = self.pairwise_distance(
+                cluster_centres,
+                cluster_centres,
+                metric=self.distance,
+                **self._distance_params,
+            )
+            M = center_distances
+            # # Step 2: Compute half the minimum distance to other centers for each center
+            # center_half_min_dist = 0.5 * np.min(
+            #     center_distances + np.diag([np.inf] * n_clusters), axis=1
+            # )
+            # Step 3: Assignment step with bounds
+            for i in range(n_instances):
+                min_dist = p[i]
+                closest = labs[i]
+                for j in range(n_clusters):
+                    if j == closest:
+                        continue
+                    # Skipping it
+                    bound = M[j, closest] / 2.0
+                    if min_dist < bound:
+                        continue
+
+                    dist = self.distance_comp(
+                        X[i], C[j], metric=self.distance, **self._distance_params
+                    )
+                    if dist < min_dist:
+                        min_dist = dist
+                        closest = j
+
+                labs[i] = closest
+                p[i] = min_dist
+
+            # Compute current inertia using upper bounds (squared distances)
+            curr_inertia = np.sum(upper_bounds**2)
+
+            # Check for empty clusters
+            if np.unique(curr_labels).size < self.n_clusters:
+                # Recompute distances and labels to handle empty clusters
+                curr_pw = self.pairwise_distance(
+                    X, cluster_centres, metric=self.distance, **self._distance_params
+                )
+                curr_labels = curr_pw.argmin(axis=1)
+                curr_inertia = curr_pw.min(axis=1).sum()
+
+                # Handle empty clusters
+                curr_pw, curr_labels, curr_inertia, cluster_centres = (
+                    self._handle_empty_cluster(
+                        X, cluster_centres, curr_pw, curr_labels, curr_inertia
+                    )
+                )
+
+                # Update upper_bounds based on new assignments
+                upper_bounds = curr_pw[np.arange(n_instances), curr_labels]
+                # Reset lower bounds
+                lower_bounds = np.zeros((n_instances, n_clusters))
+
+            # Verbose output
+            if self.verbose:
+                print(f"{curr_inertia:.3f}", end=" --> ")
+
+            # Check for convergence based on change in inertia
+            same_labels_stopping_condition = np.array_equal(prev_labels, curr_labels)
+
+            # Break here if the previous centres were better
+            if same_labels_stopping_condition:
+                if prev_inertia < curr_inertia:
+                    break
+
+            change_in_centres = np.abs(prev_inertia - curr_inertia)
+            prev_inertia = curr_inertia
+            prev_labels = curr_labels
+
+            if change_in_centres < self.tol:
+                break
+
+            # Step 4: Update the centers using the averaging method
+            new_cluster_centres = np.zeros_like(cluster_centres)
+            for j in range(n_clusters):
+                assigned_points = X[curr_labels == j]
+                new_cluster_centres[j] = self._averaging_method(
+                    assigned_points, **self._average_params
+                )
+
+            cluster_centres = new_cluster_centres
+
+            # Additional verbose output
+            if self.verbose:
+                print(f"Iteration {i}, inertia {curr_inertia:.3f}.")
+
+        else:
+            if self.verbose:
+                print(
+                    f"Reached maximum iterations {self.max_iter}, inertia {curr_inertia:.5f}."
+                )
+
+        return curr_labels, cluster_centres, curr_inertia, i + 1
 
     def _fit_one_init_elkan(self, X: np.ndarray) -> tuple:
         # Initialize the centroids (same as in the Lloyd's method)
@@ -281,6 +400,7 @@ class KESBA(BaseClusterer):
         prev_labels = None
 
         for i in range(self.max_iter):
+
             # Step 1: Compute center-center distances using pairwise_distance
             center_distances = self.pairwise_distance(
                 cluster_centres,

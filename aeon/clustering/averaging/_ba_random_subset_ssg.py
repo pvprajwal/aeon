@@ -77,8 +77,10 @@ def random_subset_ssg_barycenter_average(
 
     Returns
     -------
-    np.ndarray of shape (n_channels, n_timepoints)
+    C: np.ndarray of shape (n_channels, n_timepoints)
         Time series that is the average of the collection of instances provided.
+    p: np.ndarray of shape (n_cases,) of distances between X and C
+
 
     References
     ----------
