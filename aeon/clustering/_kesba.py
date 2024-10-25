@@ -280,9 +280,13 @@ class KESBA(BaseClusterer):
         init_pw = self.pairwise_distance(
             X, cluster_centres, metric=self.distance, **self._distance_params
         )
-        labs = init_pw.argmin(axis=1)
-        p = init_pw.min(axis=1)
-        inertia = p.sum()
+        # labs = init_pw.argmin(axis=1)
+        # p = init_pw.min(axis=1)
+        # inertia = p.sum()
+
+        labs = np.zeros(n_instances, dtype=int)
+        p = np.full(n_instances, np.inf)
+        inertia = np.inf
         C = cluster_centres
 
         prev_inertia = np.inf
@@ -306,7 +310,7 @@ class KESBA(BaseClusterer):
                 min_dist = p[i]
                 closest = labs[i]
                 for j in range(n_clusters):
-                    if j == closest:
+                    if iters > 0 and j == closest:
                         continue
                     # Skipping it
                     bound = M[j, closest] / 2.0
