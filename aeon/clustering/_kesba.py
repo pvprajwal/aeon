@@ -198,7 +198,7 @@ class KESBA(BaseClusterer):
                 elif self.algorithm == "elkan":
                     labels, centers, inertia, n_iters = self._fit_one_init_elkan(X)
                 elif self.algorithm == "tony-elkan":
-                    labels, centers, inertia, n_iters = self._fit_one_init_tony2(X)
+                    labels, centers, inertia, n_iters = self._fit_one_init_tony3(X)
                 else:
                     raise ValueError(
                         "Invalid algorithm specified. Must be 'lloyds' or 'elkan'"
@@ -263,6 +263,44 @@ class KESBA(BaseClusterer):
             metric=self.distance,
             **self._distance_params,
         )
+
+    def _fit_one_init_tony3(self, X: np.ndarray) -> tuple:
+        if isinstance(self._init, Callable):
+            cluster_centres = self._init(X)
+        else:
+            cluster_centres = self._init.copy()
+        prev_inertia = np.inf
+        prev_labels = None
+        for i in range(self.max_iter):
+
+            curr_pw = self.pairwise_distance(
+                X, cluster_centres, metric=self.distance, **self._distance_params
+            )
+            curr_labels = curr_pw.argmin(axis=1)
+            curr_inertia = (curr_pw.min(axis=1) ** 2).sum()
+
+            if self.verbose:
+                print("%.3f" % curr_inertia, end=" --> ")  # noqa: T001, T201
+
+            if np.array_equal(prev_labels, curr_labels):
+                # if change_in_centres < self.tol:
+                print(  # noqa: T001
+                    f"Converged at iteration {i}, inertia {curr_inertia:.5f}."
+                )
+                break
+            prev_inertia = curr_inertia
+            prev_labels = curr_labels.copy()
+
+            # Compute new cluster centres
+            for j in range(self.n_clusters):
+                cluster_centres[j], _ = self._averaging_method(
+                    X[curr_labels == j], **self._average_params
+                )
+
+            if self.verbose is True:
+                print(f"Iteration {i}, inertia {prev_inertia}.")  # noqa: T001, T201
+
+        return prev_labels, cluster_centres, prev_inertia, i + 1
 
     def _fit_one_init_tony2(self, X: np.ndarray) -> tuple:
         if isinstance(self._init, Callable):
