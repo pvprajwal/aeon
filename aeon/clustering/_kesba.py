@@ -161,7 +161,7 @@ class KESBA(BaseClusterer):
         self.distance_params = distance_params
         self.algorithm = algorithm
         self.num_distance_calls = 0
-        self.skip1=0
+        self.skip1 = 0
         self.skip2 = 0
         self.skip3 = 0
         self.skip4 = 0
@@ -277,24 +277,26 @@ class KESBA(BaseClusterer):
         # Initialize labels, upper bounds, lower bounds
         curr_labels = np.zeros(n_instances, dtype=int)
         upper_bounds = np.full(n_instances, np.inf)
-        lower_bounds = np.zeros((n_instances, n_clusters))
+        init_pw = self.pairwise_distance(
+            X, cluster_centres, metric=self.distance, **self._distance_params
+        )
+        labs = init_pw.argmin(axis=1)
+        p = init_pw.min(axis=1)
+        inertia = p.sum()
+        C = cluster_centres
 
         prev_inertia = np.inf
         prev_labels = None
 
         for i in range(self.max_iter):
 
-            p = np.zeros(X.shape[0])
-            C = cluster_centres
-            labs = curr_labels
             # Step 1: Compute center-center distances using pairwise_distance
-            center_distances = self.pairwise_distance(
+            M = self.pairwise_distance(
                 cluster_centres,
                 cluster_centres,
                 metric=self.distance,
                 **self._distance_params,
             )
-            M = center_distances
             # # Step 2: Compute half the minimum distance to other centers for each center
             # center_half_min_dist = 0.5 * np.min(
             #     center_distances + np.diag([np.inf] * n_clusters), axis=1
@@ -350,26 +352,21 @@ class KESBA(BaseClusterer):
                 print(f"{curr_inertia:.3f}", end=" --> ")
 
             # Check for convergence based on change in inertia
-            same_labels_stopping_condition = np.array_equal(prev_labels, curr_labels)
-
-            # Break here if the previous centres were better
-            if same_labels_stopping_condition:
-                if prev_inertia < curr_inertia:
-                    break
-
-            change_in_centres = np.abs(prev_inertia - curr_inertia)
-            prev_inertia = curr_inertia
-            prev_labels = curr_labels
-
-            if change_in_centres < self.tol:
+            change_in_inertia = np.abs(prev_inertia - curr_inertia)
+            if change_in_inertia < self.tol:
+                if self.verbose:
+                    print(f"Converged at iteration {i}, inertia {curr_inertia:.3f}.")
                 break
+
+            prev_inertia = curr_inertia
+
 
             # Step 4: Update the centers using the averaging method
             new_cluster_centres = np.zeros_like(cluster_centres)
             for j in range(n_clusters):
                 assigned_points = X[curr_labels == j]
-                new_cluster_centres[j] = self._averaging_method(
-                    assigned_points, **self._average_params
+                new_cluster_centres[j], dists_to_centre = self._averaging_method(
+                    assigned_points, **self._average_params,
                 )
 
             cluster_centres = new_cluster_centres
@@ -634,6 +631,12 @@ class KESBA(BaseClusterer):
             **self._distance_params,
             "ba_subset_size": self.ba_subset_size,
         }
+
+        if self.algorithm == "tony-elkan":
+            self._average_params = {
+                **self._distance_params,
+                "return_distances": True,
+            }
 
         # Add the distance to average params
         if "distance" not in self._average_params:

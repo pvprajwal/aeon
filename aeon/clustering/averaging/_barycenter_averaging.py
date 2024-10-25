@@ -25,6 +25,7 @@ def elastic_barycenter_average(
     verbose: bool = False,
     random_state: Optional[int] = None,
     ba_subset_size: float = 1.0,
+    return_distances: bool = False,
     **kwargs,
 ) -> np.ndarray:
     """Compute the barycenter average of time series using a elastic distance.
@@ -90,6 +91,8 @@ def elastic_barycenter_average(
     ba_subset_size: float, default=1.0
         The proportion of the dataset to use for the barycenter averaging. If set to 1.0
         the full dataset will be used.
+    return_distances: bool, default=False
+        Boolean that controls if the distances to the average are returned.
     **kwargs
         Keyword arguments to pass to the distance metric.
 
@@ -120,6 +123,7 @@ def elastic_barycenter_average(
             precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
             verbose=verbose,
             random_state=random_state,
+            return_distances=return_distances,
             **kwargs,
         )
     elif method == "subgradient":
@@ -135,6 +139,7 @@ def elastic_barycenter_average(
             precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
             verbose=verbose,
             random_state=random_state,
+            return_distances=return_distances,
             **kwargs,
         )
     elif method == "random-subset-ssg":
@@ -151,6 +156,7 @@ def elastic_barycenter_average(
             precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
             verbose=verbose,
             random_state=random_state,
+            return_distances=return_distances,
             **kwargs,
         )
     else:

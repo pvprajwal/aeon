@@ -92,6 +92,8 @@ def petitjean_barycenter_average(
     )
 
     cost_prev = np.inf
+    prev_distances = np.zeros(len(_X))
+    prev_barycenter = np.copy(barycenter)
     if distance == "wdtw" or distance == "wddtw":
         if "g" not in kwargs:
             kwargs["g"] = 0.05
@@ -100,14 +102,25 @@ def petitjean_barycenter_average(
             barycenter, _X, distance, weights, **kwargs
         )
         if abs(cost_prev - cost) < tol:
+            if cost_prev < cost:
+                cost = cost_prev
+                barycenter = prev_barycenter
+                distances = prev_distances
             break
         elif cost_prev < cost:
+            cost = cost_prev
+            barycenter = prev_barycenter
+            distances = prev_distances
             break
         else:
+            prev_barycenter = barycenter
             cost_prev = cost
-
+            prev_distances = distances
         if verbose:
-            print(f"[DBA] epoch {i}, cost {cost}")  # noqa: T001, T201
+            print(f"[BA] epoch {i}, cost {cost}")  # noqa: T001, T201
+
+    if verbose:
+        print(f"[BA] finished: {max_iters}, cost {cost}")  # noqa: T001, T201
 
     if return_distances:
         return barycenter, distances

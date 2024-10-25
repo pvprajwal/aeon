@@ -8,6 +8,7 @@ from aeon.clustering.averaging._ba_utils import (
     _get_alignment_path,
     _get_init_barycenter,
 )
+from aeon.distances import distance as distance_callable
 
 
 def subgradient_barycenter_average(
@@ -22,6 +23,7 @@ def subgradient_barycenter_average(
     precomputed_medoids_pairwise_distance: Optional[np.ndarray] = None,
     verbose: bool = False,
     random_state: Optional[int] = None,
+    return_distances: bool = False,
     **kwargs,
 ) -> np.ndarray:
     """Compute the stochastic subgradient barycenter average of time series.
@@ -120,10 +122,11 @@ def subgradient_barycenter_average(
     X_size = _X.shape[0]
 
     prev_barycenter = np.copy(barycenter)
+    prev_distances = np.zeros(X_size)
 
     for i in range(max_iters):
         shuffled_indices = random_state.permutation(X_size)
-        barycenter, cost, current_step_size = _ba_one_iter_subgradient(
+        barycenter, old_cost, current_step_size = _ba_one_iter_subgradient(
             barycenter,
             _X,
             shuffled_indices,
@@ -135,24 +138,43 @@ def subgradient_barycenter_average(
             i,
             **kwargs,
         )
+        cost = 0
+        distances = np.zeros(X_size)
+        for j in range(X_size):
+            curr = distance_callable(
+                barycenter,
+                _X[j],
+                metric=distance,
+                **kwargs,
+            )
+            distances[j] = curr
+            cost += curr
         if abs(cost_prev - cost) < tol:
             if cost_prev < cost:
                 cost = cost_prev
                 barycenter = prev_barycenter
+                distances = prev_distances
             break
         elif cost_prev < cost:
             cost = cost_prev
             barycenter = prev_barycenter
+            distances = prev_distances
             break
         else:
             prev_barycenter = barycenter
             cost_prev = cost
+            prev_distances = distances
+
 
         if verbose:
             print(f"[SSG-BA] epoch {i}, cost {cost}")  # noqa: T001, T201
 
     if verbose:
-        print(f"[SSG-BA] epoch {max_iters}, cost {cost}")  # noqa: T001, T201
+        print(f"[SSG-BA] finished: {max_iters}, cost {cost}")  # noqa: T001, T201
+
+    if return_distances:
+        return barycenter, distances
+
     return barycenter
 
 

@@ -22,9 +22,29 @@ if __name__ == "__main__":
 
     # distance = "twe"
     # averaging_method = "random_subset_ssg"
-    distance = "euclidean"
-    averaging_method = "mean"
+    distance = "msm"
+    averaging_method = "random_subset_ssg"
     verbose = True
+
+    # Tony implementation
+    clst = KESBA(
+        n_clusters=n_clusters,
+        distance=distance,
+        window=window,
+        ba_subset_size=ba_subset_size,
+        max_iter=max_iters,
+        random_state=1,
+        averaging_method=averaging_method,
+        algorithm="tony-elkan",
+        verbose=verbose,
+    )
+
+    start = time.time()
+    clst.fit(X_train)
+    end = time.time()
+    print("Time to fit with Tony Elkan: ", end - start)
+    print("Tony Elkan Number of distance calls: ", clst.num_distance_calls)
+
 
     clst = KESBA(
         n_clusters=n_clusters,
@@ -43,8 +63,16 @@ if __name__ == "__main__":
     end = time.time()
     print("Time to fit with Elkan: ", end - start)
     print("Elkan Number of distance calls: ", clst.num_distance_calls)
-    print("Skip 1 ",clst.skip1," skip 2 =",clst.skip2," skip 3 = ", clst.skip3,
-          " skip 4 = ", clst.skip4)
+    print(
+        "Skip 1 ",
+        clst.skip1,
+        " skip 2 =",
+        clst.skip2,
+        " skip 3 = ",
+        clst.skip3,
+        " skip 4 = ",
+        clst.skip4,
+    )
 
     elkan_labels = clst.labels_
     print("Num clusters", len(set(elkan_labels)))

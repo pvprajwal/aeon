@@ -176,8 +176,7 @@ def random_subset_ssg_barycenter_average(
             print(f"[Subset-SSG-BA] epoch {i}, cost {cost}")  # noqa: T001, T201
 
     if verbose:
-        print(f"[Subset-SSG-BA] epoch {max_iters}, cost {cost}")  # noqa: T001, T201
-
+        print(f"[Subset-SSG-BA] finished {max_iters}, cost {cost}")  # noqa: T001, T201
 
     if return_distances:
         return barycenter, distances
