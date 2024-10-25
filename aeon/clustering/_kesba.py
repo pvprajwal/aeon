@@ -288,7 +288,7 @@ class KESBA(BaseClusterer):
         prev_inertia = np.inf
         prev_labels = None
 
-        for i in range(self.max_iter):
+        for iters in range(self.max_iter):
 
             # Step 1: Compute center-center distances using pairwise_distance
             M = self.pairwise_distance(
@@ -333,7 +333,7 @@ class KESBA(BaseClusterer):
                     X, cluster_centres, metric=self.distance, **self._distance_params
                 )
                 curr_labels = curr_pw.argmin(axis=1)
-                curr_inertia = curr_pw.min(axis=1).sum()
+                curr_inertia = (curr_pw.min(axis=1) ** 2).sum()
 
                 # Handle empty clusters
                 curr_pw, curr_labels, curr_inertia, cluster_centres = (
@@ -355,25 +355,27 @@ class KESBA(BaseClusterer):
             change_in_inertia = np.abs(prev_inertia - curr_inertia)
             if change_in_inertia < self.tol:
                 if self.verbose:
-                    print(f"Converged at iteration {i}, inertia {curr_inertia:.3f}.")
+                    print(
+                        f"Converged at iteration {iters}, inertia {curr_inertia:.3f}."
+                    )
                 break
 
             prev_inertia = curr_inertia
-
 
             # Step 4: Update the centers using the averaging method
             new_cluster_centres = np.zeros_like(cluster_centres)
             for j in range(n_clusters):
                 assigned_points = X[curr_labels == j]
                 new_cluster_centres[j], dists_to_centre = self._averaging_method(
-                    assigned_points, **self._average_params,
+                    assigned_points,
+                    **self._average_params,
                 )
 
             cluster_centres = new_cluster_centres
 
             # Additional verbose output
             if self.verbose:
-                print(f"Iteration {i}, inertia {curr_inertia:.3f}.")
+                print(f"Iteration {iters}, inertia {curr_inertia:.3f}.")
 
         else:
             if self.verbose:
@@ -548,7 +550,7 @@ class KESBA(BaseClusterer):
                 X, cluster_centres, metric=self.distance, **self._distance_params
             )
             curr_labels = curr_pw.argmin(axis=1)
-            curr_inertia = curr_pw.min(axis=1).sum()
+            curr_inertia = (curr_pw.min(axis=1) ** 2).sum()
 
             # If an empty cluster is encountered
             if np.unique(curr_labels).size < self.n_clusters:
@@ -708,7 +710,7 @@ class KESBA(BaseClusterer):
                 X, cluster_centres, metric=self.distance, **self._distance_params
             )
             curr_labels = curr_pw.argmin(axis=1)
-            curr_inertia = curr_pw.min(axis=1).sum()
+            curr_inertia = (curr_pw.min(axis=1) ** 2).sum()
             empty_clusters = np.setdiff1d(np.arange(self.n_clusters), curr_labels)
             j += 1
             if j > self.n_clusters:

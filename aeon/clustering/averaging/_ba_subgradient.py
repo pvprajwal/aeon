@@ -165,7 +165,6 @@ def subgradient_barycenter_average(
             cost_prev = cost
             prev_distances = distances
 
-
         if verbose:
             print(f"[SSG-BA] epoch {i}, cost {cost}")  # noqa: T001, T201
 

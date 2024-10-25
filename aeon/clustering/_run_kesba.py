@@ -11,8 +11,8 @@ from aeon.testing.data_generation import make_example_3d_numpy
 
 if __name__ == "__main__":
 
-    X_train, y_train = load_acsf1(split="train")
-    # X_train, y_train = load_gunpoint(split="train")
+    # X_train, y_train = load_acsf1(split="train")
+    X_train, y_train = load_gunpoint(split="train")
     n_clusters = len(set(list(y_train)))
     # X_train = make_example_3d_numpy(n_cases=100, n_channels=1, n_timepoints=100, return_y=False)
     # n_clusters = 5
@@ -44,7 +44,6 @@ if __name__ == "__main__":
     end = time.time()
     print("Time to fit with Tony Elkan: ", end - start)
     print("Tony Elkan Number of distance calls: ", clst.num_distance_calls)
-
 
     clst = KESBA(
         n_clusters=n_clusters,
