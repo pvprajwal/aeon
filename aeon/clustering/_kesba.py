@@ -275,19 +275,13 @@ class KESBA(BaseClusterer):
 
         n_clusters = cluster_centres.shape[0]
         # Initialize labels, upper bounds, lower bounds
-        curr_labels = np.zeros(n_instances, dtype=int)
-        upper_bounds = np.full(n_instances, np.inf)
-        init_pw = self.pairwise_distance(
-            X, cluster_centres, metric=self.distance, **self._distance_params
-        )
         # labs = init_pw.argmin(axis=1)
         # p = init_pw.min(axis=1)
         # inertia = p.sum()
 
-        labs = np.zeros(n_instances, dtype=int)
+        curr_labels = np.zeros(n_instances, dtype=int)
         p = np.full(n_instances, np.inf)
         inertia = np.inf
-        C = cluster_centres
 
         prev_inertia = np.inf
         prev_labels = None
@@ -308,7 +302,7 @@ class KESBA(BaseClusterer):
             # Step 3: Assignment step with bounds
             for i in range(n_instances):
                 min_dist = p[i]
-                closest = labs[i]
+                closest = curr_labels[i]
                 for j in range(n_clusters):
                     if iters > 0 and j == closest:
                         continue
@@ -318,17 +312,17 @@ class KESBA(BaseClusterer):
                         continue
 
                     dist = self.distance_comp(
-                        X[i], C[j], metric=self.distance, **self._distance_params
+                        X[i], cluster_centres[j], metric=self.distance, **self._distance_params
                     )
                     if dist < min_dist:
                         min_dist = dist
                         closest = j
 
-                labs[i] = closest
+                curr_labels[i] = closest
                 p[i] = min_dist
 
             # Compute current inertia using upper bounds (squared distances)
-            curr_inertia = np.sum(upper_bounds**2)
+            curr_inertia = np.sum(p**2)
 
             # Check for empty clusters
             if np.unique(curr_labels).size < self.n_clusters:
@@ -348,8 +342,6 @@ class KESBA(BaseClusterer):
 
                 # Update upper_bounds based on new assignments
                 upper_bounds = curr_pw[np.arange(n_instances), curr_labels]
-                # Reset lower bounds
-                lower_bounds = np.zeros((n_instances, n_clusters))
 
             # Verbose output
             if self.verbose:
