@@ -27,6 +27,7 @@ if __name__ == "__main__":
     verbose = True
 
     # Tony implementation
+    print("++++++++++++++++++Tony Elkan++++++++++++++++++++")
     clst = KESBA(
         n_clusters=n_clusters,
         distance=distance,
@@ -44,37 +45,43 @@ if __name__ == "__main__":
     end = time.time()
     print("Time to fit with Tony Elkan: ", end - start)
     print("Tony Elkan Number of distance calls: ", clst.num_distance_calls)
+    tony_elkan_labels = clst.labels_
+    print("++++++++++++++++++Tony Elkan++++++++++++++++++++")
 
-    clst = KESBA(
-        n_clusters=n_clusters,
-        distance=distance,
-        window=window,
-        ba_subset_size=ba_subset_size,
-        max_iter=max_iters,
-        random_state=1,
-        averaging_method=averaging_method,
-        algorithm="elkan",
-        verbose=verbose,
-    )
+    # print("++++++++++++++++++Elkan++++++++++++++++++++")
+    #
+    # clst = KESBA(
+    #     n_clusters=n_clusters,
+    #     distance=distance,
+    #     window=window,
+    #     ba_subset_size=ba_subset_size,
+    #     max_iter=max_iters,
+    #     random_state=1,
+    #     averaging_method=averaging_method,
+    #     algorithm="elkan",
+    #     verbose=verbose,
+    # )
+    #
+    # start = time.time()
+    # clst.fit(X_train)
+    # end = time.time()
+    # print("Time to fit with Elkan: ", end - start)
+    # print("Elkan Number of distance calls: ", clst.num_distance_calls)
+    # print(
+    #     "Skip 1 ",
+    #     clst.skip1,
+    #     " skip 2 =",
+    #     clst.skip2,
+    #     " skip 3 = ",
+    #     clst.skip3,
+    #     " skip 4 = ",
+    #     clst.skip4,
+    # )
+    #
+    # elkan_labels = clst.labels_
+    # print("Num clusters", len(set(elkan_labels)))
 
-    start = time.time()
-    clst.fit(X_train)
-    end = time.time()
-    print("Time to fit with Elkan: ", end - start)
-    print("Elkan Number of distance calls: ", clst.num_distance_calls)
-    print(
-        "Skip 1 ",
-        clst.skip1,
-        " skip 2 =",
-        clst.skip2,
-        " skip 3 = ",
-        clst.skip3,
-        " skip 4 = ",
-        clst.skip4,
-    )
-
-    elkan_labels = clst.labels_
-    print("Num clusters", len(set(elkan_labels)))
+    print("++++++++++++++++++Lloyds++++++++++++++++++++")
 
     clst = KESBA(
         n_clusters=n_clusters,
@@ -94,6 +101,8 @@ if __name__ == "__main__":
     print("Time to fit with Lloyds: ", end - start)
     print("Lloyds Number of distance calls: ", clst.num_distance_calls)
 
+    print("++++++++++++++++++Lloyds++++++++++++++++++++")
+
     lloyds_labels = clst.labels_
 
     # print("Eklan ARI: ", adjusted_rand_score(y_train, elkan_labels))
@@ -101,4 +110,5 @@ if __name__ == "__main__":
 
     # print("Elkan labels: ", elkan_labels)
     # print("Lloyds labels: ", lloyds_labels)
-    print("Are the labels the same? ", np.array_equal(elkan_labels, lloyds_labels))
+    # print("Are Elkan -> lloyds the labels the same? ", np.array_equal(elkan_labels, lloyds_labels))
+    print("Are Tony Elkan -> lloyds the labels the same? ", np.array_equal(tony_elkan_labels, lloyds_labels))
