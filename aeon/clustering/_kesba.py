@@ -425,10 +425,12 @@ class KESBA(BaseClusterer):
                 closest = curr_labels[i]
                 for j in range(n_clusters):
                     if iters > 0 and j == closest:
+                        self.skip1 += 1
                         continue
                     # Skipping it
                     bound = M[j, closest] / 2.0
                     if min_dist < bound:
+                        self.skip2 += 1
                         continue
 
                     dist = self.distance_comp(
