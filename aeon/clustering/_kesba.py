@@ -198,7 +198,7 @@ class KESBA(BaseClusterer):
                 elif self.algorithm == "elkan":
                     labels, centers, inertia, n_iters = self._fit_one_init_elkan(X)
                 elif self.algorithm == "tony-elkan":
-                    labels, centers, inertia, n_iters = self._fit_one_init_tony3(X)
+                    labels, centers, inertia, n_iters = self._fit_one_init_tony(X)
                 else:
                     raise ValueError(
                         "Invalid algorithm specified. Must be 'lloyds' or 'elkan'"
@@ -447,10 +447,29 @@ class KESBA(BaseClusterer):
             # Compute current inertia using upper bounds (squared distances)
             curr_inertia = np.sum(p**2)
 
+            # Check for empty clusters
+            if np.unique(curr_labels).size < self.n_clusters:
+                # Recompute distances and labels to handle empty clusters
+                curr_pw = self.pairwise_distance(
+                    X, cluster_centres, metric=self.distance, **self._distance_params
+                )
+                curr_labels = curr_pw.argmin(axis=1)
+
+                # Handle empty clusters
+                curr_pw, curr_labels, curr_inertia, cluster_centres = (
+                    self._handle_empty_cluster(
+                        X, cluster_centres, curr_pw, curr_labels, curr_inertia
+                    )
+                )
+                p = curr_pw.min(axis=1)
+                curr_inertia = (p ** 2).sum()
+
             # Verbose output
             if self.verbose:
                 print(f"{curr_inertia:.3f}", end=" --> ")
 
+            # Check for convergence based on change in inertia
+            change_in_inertia = np.abs(prev_inertia - curr_inertia)
             if np.array_equal(prev_labels, curr_labels):
                 # if change_in_centres < self.tol:
                 print(  # noqa: T001
@@ -462,18 +481,13 @@ class KESBA(BaseClusterer):
             prev_labels = curr_labels.copy()
 
             # Step 4: Update the centers using the averaging method
-            # Compute new cluster centres
-            for j in range(self.n_clusters):
-                cluster_centres[j], p = self._averaging_method(
-                    X[curr_labels == j], **self._average_params
+            for j in range(n_clusters):
+                assigned_points = X[curr_labels == j]
+                cluster_centres[j], dists_to_centre = self._averaging_method(
+                    assigned_points,
+                    **self._average_params,
                 )
-            # for j in range(n_clusters):
-            #     assigned_points = X[curr_labels == j]
-            #     cluster_centres[j], dists_to_centre = self._averaging_method(
-            #         assigned_points,
-            #         **self._average_params,
-            #     )
-            #     p[curr_labels == j] = dists_to_centre
+                p[curr_labels == j] = dists_to_centre
 
             # Additional verbose output
             if self.verbose:
@@ -486,6 +500,7 @@ class KESBA(BaseClusterer):
                 )
 
         return curr_labels, cluster_centres, curr_inertia, i + 1
+
 
     def _fit_one_init_elkan(self, X: np.ndarray) -> tuple:
         # Initialize the centroids (same as in the Lloyd's method)
@@ -565,25 +580,25 @@ class KESBA(BaseClusterer):
             curr_inertia = np.sum(upper_bounds**2)
 
             # Check for empty clusters
-            # if np.unique(curr_labels).size < self.n_clusters:
-            #     # Recompute distances and labels to handle empty clusters
-            #     curr_pw = self.pairwise_distance(
-            #         X, cluster_centres, metric=self.distance, **self._distance_params
-            #     )
-            #     curr_labels = curr_pw.argmin(axis=1)
-            #     curr_inertia = curr_pw.min(axis=1).sum()
-            #
-            #     # Handle empty clusters
-            #     curr_pw, curr_labels, curr_inertia, cluster_centres = (
-            #         self._handle_empty_cluster(
-            #             X, cluster_centres, curr_pw, curr_labels, curr_inertia
-            #         )
-            #     )
-            #
-            #     # Update upper_bounds based on new assignments
-            #     upper_bounds = curr_pw[np.arange(n_instances), curr_labels]
-            #     # Reset lower bounds
-            #     lower_bounds = np.zeros((n_instances, n_clusters))
+            if np.unique(curr_labels).size < self.n_clusters:
+                # Recompute distances and labels to handle empty clusters
+                curr_pw = self.pairwise_distance(
+                    X, cluster_centres, metric=self.distance, **self._distance_params
+                )
+                curr_labels = curr_pw.argmin(axis=1)
+                curr_inertia = curr_pw.min(axis=1).sum()
+
+                # Handle empty clusters
+                curr_pw, curr_labels, curr_inertia, cluster_centres = (
+                    self._handle_empty_cluster(
+                        X, cluster_centres, curr_pw, curr_labels, curr_inertia
+                    )
+                )
+
+                # Update upper_bounds based on new assignments
+                upper_bounds = curr_pw[np.arange(n_instances), curr_labels]
+                # Reset lower bounds
+                lower_bounds = np.zeros((n_instances, n_clusters))
 
             # Verbose output
             if self.verbose:
@@ -606,7 +621,7 @@ class KESBA(BaseClusterer):
             new_cluster_centres = np.zeros_like(cluster_centres)
             for j in range(n_clusters):
                 assigned_points = X[curr_labels == j]
-                new_cluster_centres[j] = self._averaging_method(
+                new_cluster_centres[j],_ = self._averaging_method(
                     assigned_points, **self._average_params
                 )
 
@@ -673,7 +688,7 @@ class KESBA(BaseClusterer):
 
             # Compute new cluster centres
             for j in range(self.n_clusters):
-                cluster_centres[j] = self._averaging_method(
+                cluster_centres[j], _ = self._averaging_method(
                     X[curr_labels == j], **self._average_params
                 )
 
@@ -732,11 +747,11 @@ class KESBA(BaseClusterer):
             "ba_subset_size": self.ba_subset_size,
         }
 
-        if self.algorithm == "tony-elkan":
-            self._average_params = {
-                **self._distance_params,
-                "return_distances": True,
-            }
+        # if self.algorithm == "tony-elkan":
+        self._average_params = {
+            **self._distance_params,
+            "return_distances": True,
+        }
 
         # Add the distance to average params
         if "distance" not in self._average_params:
