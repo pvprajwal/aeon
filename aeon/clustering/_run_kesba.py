@@ -111,4 +111,7 @@ if __name__ == "__main__":
     # print("Elkan labels: ", elkan_labels)
     # print("Lloyds labels: ", lloyds_labels)
     # print("Are Elkan -> lloyds the labels the same? ", np.array_equal(elkan_labels, lloyds_labels))
-    print("Are Tony Elkan -> lloyds the labels the same? ", np.array_equal(tony_elkan_labels, lloyds_labels))
+    print(
+        "Are Tony Elkan -> lloyds the labels the same? ",
+        np.array_equal(tony_elkan_labels, lloyds_labels),
+    )

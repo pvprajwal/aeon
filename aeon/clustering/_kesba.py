@@ -352,7 +352,7 @@ class KESBA(BaseClusterer):
             if np.array_equal(prev_labels, curr_labels):
                 # if change_in_centres < self.tol:
                 print(  # noqa: T001
-                    f"Converged at iteration {i}, inertia {curr_inertia:.5f}."
+                    f"Converged at iteration {iters}, inertia {curr_inertia:.5f}."
                 )
                 break
 
@@ -366,7 +366,7 @@ class KESBA(BaseClusterer):
                     assigned_points,
                     **self._average_params,
                 )
-
+                p[curr_labels == j] = dists_to_centre
 
             # Additional verbose output
             if self.verbose:
@@ -486,7 +486,7 @@ class KESBA(BaseClusterer):
             change_in_inertia = np.abs(prev_inertia - curr_inertia)
 
             if np.array_equal(prev_labels, curr_labels):
-            # if change_in_centres < self.tol:
+                # if change_in_centres < self.tol:
                 print(  # noqa: T001
                     f"Converged at iteration {i}, inertia {curr_inertia:.5f}."
                 )
@@ -571,7 +571,6 @@ class KESBA(BaseClusterer):
                 break
             prev_inertia = curr_inertia
             prev_labels = curr_labels.copy()
-
 
             # Compute new cluster centres
             for j in range(self.n_clusters):
