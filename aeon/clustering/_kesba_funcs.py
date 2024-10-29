@@ -90,6 +90,7 @@ def _kesba(
     window,
     verbose,
 ):
+    prev_inertia = np.inf
     prev_labels = None
     prev_cluster_centres = None
     for i in range(100):
@@ -260,6 +261,7 @@ def _kesba_assignment(
         print(f"{inertia:.5f}", end=" --> ")
     return labels, distances_to_centres, inertia
 
+
 def _kesba_lloyds_assignment(
     X,
     cluster_centres,
@@ -269,7 +271,7 @@ def _kesba_lloyds_assignment(
     curr_pw = msm_pairwise_distance(X, cluster_centres, window=window)
     labels = curr_pw.argmin(axis=1)
     distances_to_centres = curr_pw.min(axis=1)
-    inertia = np.sum(distances_to_centres ** 2)
+    inertia = np.sum(distances_to_centres**2)
     if verbose:
         print(f"{inertia:.5f}", end=" --> ")
     return labels, distances_to_centres, inertia
