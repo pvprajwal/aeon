@@ -12,6 +12,7 @@ __all__ = [
     "ElasticSOM",
     "KSpectralCentroid",
     "DummyClusterer",
+    "KESBA_old",
     "KESBA",
 ]
 
@@ -25,5 +26,6 @@ from aeon.clustering._k_shape import TimeSeriesKShape
 from aeon.clustering._k_shapes import TimeSeriesKShapes
 from aeon.clustering._kernel_k_means import TimeSeriesKernelKMeans
 from aeon.clustering._kesba import KESBA
+from aeon.clustering._kesba_old import KESBA_old
 from aeon.clustering.base import BaseClusterer
 from aeon.clustering.dummy import DummyClusterer

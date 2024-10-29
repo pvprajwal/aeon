@@ -5,60 +5,26 @@ import time
 import numpy as np
 from sklearn.metrics import adjusted_rand_score
 
-from aeon.clustering import KESBA
+from aeon.clustering import KESBA, KESBA_old
 from aeon.datasets import load_acsf1, load_gunpoint
 from aeon.testing.data_generation import make_example_3d_numpy
 
-if __name__ == "__main__":
+max_iters = 20
+window = 0.2
+ba_subset_size = 0.2
+distance = "msm"
+averaging_method = "ba"
+# averaging_method = "ba"
+verbose = True
+init = "first"
 
-    X_train, y_train = load_gunpoint(split="train")
-    # X_train = make_example_3d_numpy(n_cases=100, n_channels=1, n_timepoints=100, return_y=False)
-    # n_clusters = 5
-    X_train, y_train = load_acsf1(split="train")
-    X_train = np.random.random((300, 1, 100))
-    n_clusters = len(set(list(y_train)))
-    n_clusters = 2
-    max_iters = 20
-    window = 0.2
-    ba_subset_size = 0.2
 
-    # distance = "twe"
-    # averaging_method = "random_subset_ssg"
-    distance = "msm"
-    averaging_method = "random_subset_ssg"
-    verbose = True
+def run_eklan_kesba(X_train, n_clusters):
+    print("++++++++++++++++++Elkan+++++++++++++++++++++")
 
-    # Tony implementation
-    print("++++++++++++++++++Tony Elkan++++++++++++++++++++")
-    clst = KESBA(
+    clst = KESBA_old(
         n_clusters=n_clusters,
-        distance=distance,
-        window=window,
-        ba_subset_size=ba_subset_size,
-        max_iter=max_iters,
-        random_state=1,
-        averaging_method=averaging_method,
-        algorithm="tony-elkan",
-        verbose=verbose,
-    )
-
-    start = time.time()
-    clst.fit(X_train)
-    end = time.time()
-    print("Time to fit with Tony Elkan: ", end - start)
-    print("Tony Elkan Number of distance calls: ", clst.num_distance_calls)
-    print(
-        "Skip 1 ",
-        clst.skip1,
-        " skip 2 =",
-        clst.skip2)
-    tony_elkan_labels = clst.labels_
-    print("++++++++++++++++++Tony Elkan++++++++++++++++++++")
-    #
-    print("++++++++++++++++++Elkan++++++++++++++++++++")
-
-    clst = KESBA(
-        n_clusters=n_clusters,
+        init=init,
         distance=distance,
         window=window,
         ba_subset_size=ba_subset_size,
@@ -72,26 +38,19 @@ if __name__ == "__main__":
     start = time.time()
     clst.fit(X_train)
     end = time.time()
+    print("Converged at iteration: ", clst.n_iter_)
     print("Time to fit with Elkan: ", end - start)
     print("Elkan Number of distance calls: ", clst.num_distance_calls)
-    print(
-        "Skip 1 ",
-        clst.skip1,
-        " skip 2 =",
-        clst.skip2,
-        " skip 3 = ",
-        clst.skip3,
-        " skip 4 = ",
-        clst.skip4,
-    )
+    print("++++++++++++++++++Elkan+++++++++++++++++++++")
+    return clst.labels_
 
-    elkan_labels = clst.labels_
-    print("Num clusters", len(set(elkan_labels)))
 
+def run_lloyds_kesba(X_train, n_clusters):
     print("++++++++++++++++++Lloyds++++++++++++++++++++")
 
-    clst = KESBA(
+    clst = KESBA_old(
         n_clusters=n_clusters,
+        init=init,
         distance=distance,
         window=window,
         ba_subset_size=ba_subset_size,
@@ -105,20 +64,65 @@ if __name__ == "__main__":
     start = time.time()
     clst.fit(X_train)
     end = time.time()
+    print("Converged at iteration: ", clst.n_iter_)
     print("Time to fit with Lloyds: ", end - start)
     print("Lloyds Number of distance calls: ", clst.num_distance_calls)
 
     print("++++++++++++++++++Lloyds++++++++++++++++++++")
+    return clst.labels_
 
-    lloyds_labels = clst.labels_
 
-    # print("Eklan ARI: ", adjusted_rand_score(y_train, elkan_labels))
-    # print("Lloyds ARI: ", adjusted_rand_score(y_train, lloyds_labels))
-
-    # print("Elkan labels: ", elkan_labels)
-    # print("Lloyds labels: ", lloyds_labels)
-    print("Are Elkan -> lloyds the labels the same? ", np.array_equal(elkan_labels, lloyds_labels))
-    print(
-        "Are Tony Elkan -> lloyds the labels the same? ",
-        np.array_equal(tony_elkan_labels, lloyds_labels),
+def run_tony_kesba(X_train, n_clusters):
+    print("++++++++++++++++Tony Elkan++++++++++++++++++")
+    clst = KESBA(
+        n_clusters=n_clusters,
+        distance=distance,
+        window=window,
+        ba_subset_size=ba_subset_size,
+        max_iter=max_iters,
+        random_state=1,
+        verbose=verbose,
     )
+
+    start = time.time()
+    clst.fit(X_train)
+    end = time.time()
+    print("Converged at iteration: ", clst.n_iter_)
+    print("Time to fit with Tony Elkan: ", end - start)
+    print("Tony Elkan Number of distance calls: ", clst.num_distance_calls)
+    print("++++++++++++++++Tony Elkan++++++++++++++++++")
+    return clst.labels_
+
+
+if __name__ == "__main__":
+    run_lloyds = True
+    run_elkan = False
+    run_tony = True
+
+    X_train, y_train = load_gunpoint(split="train")
+    # X_train = make_example_3d_numpy(n_cases=100, n_channels=1, n_timepoints=100, return_y=False)
+    # n_clusters = 5
+    X_train, y_train = load_acsf1(split="train")
+    X_train = np.random.random((300, 1, 100))
+    n_clusters = len(set(list(y_train)))
+    n_clusters = 2
+
+    if run_tony:
+        tony_elkan_labels = run_tony_kesba(X_train, n_clusters)
+    if run_lloyds:
+        lloyds_labels = run_lloyds_kesba(X_train, n_clusters)
+
+    if run_elkan:
+        elkan_labels = run_eklan_kesba(X_train, n_clusters)
+
+    if run_lloyds and run_elkan:
+        print(
+            "Are Elkan -> lloyds the labels the same? ",
+            np.array_equal(elkan_labels, lloyds_labels),
+        )
+
+    if run_tony and run_lloyds:
+        print(
+            "Are Tony Elkan -> lloyds the labels the same? ",
+            np.array_equal(tony_elkan_labels, lloyds_labels),
+        )
