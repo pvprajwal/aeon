@@ -64,6 +64,21 @@ def kesba(
 
 # ==================== KESBA ====================
 
+# curr_pw_1 = msm_pairwise_distance(X, cluster_centres, window=window)
+# labels_1 = curr_pw_1.argmin(axis=1)
+# distances_to_centres_1 = curr_pw_1.min(axis=1)
+# inertia_1 = np.sum(distances_to_centres_1**2)
+#
+# labels_equal = np.array_equal(labels, labels_1)
+# inertia_equal = inertia == inertia_1
+# index_diff = []
+#
+# for index_i in range(X.shape[0]):
+#     if labels[index_i] != labels_1[index_i]:
+#         index_diff.append(index_i)
+#
+# num_diff = len(index_diff)
+
 
 def _kesba(
     X,
@@ -78,17 +93,6 @@ def _kesba(
     prev_labels = None
     prev_cluster_centres = None
     for i in range(100):
-        cluster_centres, distances_to_centres = _kesba_update(
-            X,
-            cluster_centres,
-            labels,
-            n_clusters,
-            random_state,
-            window,
-            i,
-            distances_to_centres,
-        )
-
         distance_between_centres = msm_pairwise_distance(
             cluster_centres,
             cluster_centres,
@@ -106,22 +110,6 @@ def _kesba(
             window,
             verbose,
         )
-
-        curr_pw_1 = msm_pairwise_distance(X, cluster_centres, window=window)
-        labels_1 = curr_pw_1.argmin(axis=1)
-        distances_to_centres_1 = curr_pw_1.min(axis=1)
-        inertia_1 = np.sum(distances_to_centres_1**2)
-
-        labels_equal = np.array_equal(labels, labels_1)
-        inertia_equal = inertia == inertia_1
-
-        index_diff = []
-
-        for index_i in range(X.shape[0]):
-            if labels[index_i] != labels_1[index_i]:
-                index_diff.append(index_i)
-
-        num_diff = len(index_diff)
 
         labels, cluster_centres, distances_to_centres = _handle_empty_cluster(
             X,
@@ -143,6 +131,17 @@ def _kesba(
         prev_inertia = inertia
         prev_labels = labels.copy()
         prev_cluster_centres = cluster_centres.copy()
+
+        cluster_centres, distances_to_centres = _kesba_update(
+            X,
+            cluster_centres,
+            labels,
+            n_clusters,
+            random_state,
+            window,
+            i,
+            distances_to_centres,
+        )
 
         if verbose is True:
             print(f"Iteration {i}, inertia {prev_inertia}.")  # noqa: T001, T201
@@ -172,7 +171,7 @@ def _kesba_lloyds(
     prev_inertia = np.inf
     prev_labels = None
     prev_cluster_centres = None
-    for i in range(101):
+    for i in range(100):
 
         curr_pw = msm_pairwise_distance(X, cluster_centres, window=window)
         labels = curr_pw.argmin(axis=1)
@@ -199,6 +198,7 @@ def _kesba_lloyds(
                 )
 
             break
+
         prev_inertia = inertia
         prev_labels = labels.copy()
         prev_cluster_centres = cluster_centres.copy()
