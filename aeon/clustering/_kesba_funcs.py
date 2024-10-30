@@ -105,6 +105,24 @@ def _kesba(
             verbose,
         )
 
+        lloyds_labels, lloyds_distances_to_centres, lloyds_inertia = _kesba_lloyds_assignment(
+            X,
+            cluster_centres,
+            window,
+            verbose,
+        )
+
+        labels_equal = np.array_equal(labels, lloyds_labels)
+        distances_to_centres_equal = np.array_equal(distances_to_centres, lloyds_distances_to_centres)
+        inertia_equal = inertia == lloyds_inertia
+
+        if not labels_equal:
+            print("Labels not equal")
+        if not distances_to_centres_equal:
+            print("Distances to centres not equal")
+        if not inertia_equal:
+            print("Inertia not equal")
+
         labels, cluster_centres, distances_to_centres = _handle_empty_cluster(
             X,
             cluster_centres,
@@ -233,6 +251,8 @@ def _kesba_assignment(
     window,
     verbose,
 ):
+    curr_pw = msm_pairwise_distance(X, cluster_centres, window=window)
+    lloyds_distances_to_centres = curr_pw.min(axis=1)
     distances_between_centres = msm_pairwise_distance(
         cluster_centres,
         cluster_centres,
@@ -255,6 +275,10 @@ def _kesba_assignment(
 
         labels[i] = closest
         distances_to_centres[i] = min_dist
+        if distances_to_centres[i] != lloyds_distances_to_centres[i]:
+            first = distances_to_centres[i]
+            second = lloyds_distances_to_centres[i]
+            stop = ""
 
     inertia = np.sum(distances_to_centres**2)
     if verbose:
@@ -282,12 +306,13 @@ def _kesba_lloyds_assignment(
 
 def _mean_average(X, window):
     cluster_centres = X.mean(axis=0)
-    try:
-        pw = msm_pairwise_distance(X, cluster_centres, window=window)
-        distances_to_centres = pw.min(axis=1)
-        return cluster_centres, distances_to_centres
-    except:
-        temp = ""
+    return cluster_centres
+    # try:
+    #     pw = msm_pairwise_distance(X, cluster_centres, window=window)
+    #     distances_to_centres = pw.min(axis=1)
+    #     return cluster_centres, distances_to_centres
+    # except:
+    #     temp = ""
 
 
 # ==================== Update ====================
@@ -303,16 +328,28 @@ def _kesba_update(
 ):
 
     for j in range(n_clusters):
-        # cluster_centres[j], dist_to_centre = _mean_average(X[labels == j], window=window)
-        cluster_centres[j], dist_to_centre = elastic_barycenter_average(
+        # curr_centre = _mean_average(X[labels == j], window=window)
+        # curr_centre = elastic_barycenter_average(
+        #     X[labels == j],
+        #     distance="msm",
+        #     max_iters=50,
+        #     random_state=random_state,
+        #     window=window,
+        #     method="random_subset_ssg",  # "subgradient",
+        # )
+
+        curr_centre, dist_to_centre = elastic_barycenter_average(
             X[labels == j],
             distance="msm",
             max_iters=50,
             random_state=random_state,
-            return_distances=True,
             window=window,
-            method="petitjean",
+            method="random_subset_ssg",  # "subgradient",
+            return_distances=True,
         )
+        cluster_centres[j] = curr_centre
+        # pw = msm_pairwise_distance(X[labels == j], curr_centre, window=window)
+        # dist_to_centre = pw.min(axis=1)
         if distances_to_centres is not None:
             distances_to_centres[labels == j] = dist_to_centre
 
@@ -355,8 +392,6 @@ def _handle_empty_cluster(
 
 
 # ==================== Empty Cluster ====================
-
-
 # ==================== Initialisation ====================
 def _kesba_kmeans_plus_plus(
     X,
@@ -378,7 +413,7 @@ def _kesba_kmeans_plus_plus(
         indexes.append(next_center_idx)
 
         new_distances = msm_pairwise_distance(
-            X, X[next_center_idx], window=window
+            X, X[next_center_idx], window=window, independent=False, c=1.0, itakura_max_slope=None, unequal_length=False
         ).flatten()
 
         closer_points = new_distances < min_distances
@@ -398,3 +433,42 @@ def _first(X, n_clusters, window):
 
 
 # ==================== Initialisation ====================
+
+if __name__ == "__main__":
+    from aeon.testing.data_generation import make_example_3d_numpy
+
+    X_train = make_example_3d_numpy(100, 1, 100, random_state=1, return_y=False)
+    n_clusters = 6
+    window = 0.05
+
+    # init_temp = _first(X_train, n_clusters, 0.2)
+    init_temp = "ours"
+
+    labels, cluster_centers, inertia, _ = kesba(
+        X=X_train.copy(),
+        n_clusters=n_clusters,
+        random_state=1,
+        algorithm="ours",
+        init=init_temp,
+        window=window,
+        verbose=True,
+    )
+    print("++++++++++++++++++++++++++++++++++++++")
+    labels_lloyds, lloyds_cluster_centers, inertia_lloyds, _ = kesba(
+        X=X_train.copy(),
+        n_clusters=n_clusters,
+        random_state=1,
+        algorithm="lloyds",
+        init=init_temp,
+        window=window,
+        verbose=True,
+    )
+    print("++++++++++++++++++++++++++++++++++++++")
+    print("Are labels the same? ", np.array_equal(labels, labels_lloyds))
+    print("Inertia: ", inertia)
+    print("Inertia lloyds: ", inertia_lloyds)
+    print("Inertia difference: ", inertia - inertia_lloyds)
+    print(
+        "Are cluster centers the same? ",
+        np.array_equal(cluster_centers, lloyds_cluster_centers),
+    )

@@ -7,6 +7,7 @@ from aeon.clustering.averaging._ba_utils import (
     _get_alignment_path,
     _get_init_barycenter,
 )
+from aeon.distances import pairwise_distance
 
 
 def petitjean_barycenter_average(
@@ -92,30 +93,26 @@ def petitjean_barycenter_average(
     )
 
     cost_prev = np.inf
-    prev_distances = np.zeros(len(_X))
     prev_barycenter = np.copy(barycenter)
     if distance == "wdtw" or distance == "wddtw":
         if "g" not in kwargs:
             kwargs["g"] = 0.05
     for i in range(max_iters):
-        barycenter, cost, distances = _ba_one_iter_petitjean(
+        barycenter, cost = _ba_one_iter_petitjean(
             barycenter, _X, distance, weights, **kwargs
         )
         if abs(cost_prev - cost) < tol:
             if cost_prev < cost:
                 cost = cost_prev
                 barycenter = prev_barycenter
-                distances = prev_distances
             break
         elif cost_prev < cost:
             cost = cost_prev
             barycenter = prev_barycenter
-            distances = prev_distances
             break
         else:
             prev_barycenter = barycenter
             cost_prev = cost
-            prev_distances = distances
         if verbose:
             print(f"[BA] epoch {i}, cost {cost}")  # noqa: T001, T201
 
@@ -123,9 +120,9 @@ def petitjean_barycenter_average(
         print(f"[BA] finished: {max_iters}, cost {cost}")  # noqa: T001, T201
 
     if return_distances:
-        return barycenter, distances
-    return barycenter
+        return barycenter, pairwise_distance(X, barycenter, metric=distance, **kwargs).min(axis=1)
 
+    return barycenter
 
 @njit(cache=True, fastmath=True)
 def _ba_one_iter_petitjean(
@@ -147,12 +144,11 @@ def _ba_one_iter_petitjean(
     transformed_x: Optional[np.ndarray] = None,
     transformed_y: Optional[np.ndarray] = None,
     gamma: float = 1.0,
-) -> tuple[np.ndarray, float, np.ndarray]:
+) -> tuple[np.ndarray, float]:
     X_size, X_dims, X_timepoints = X.shape
     sum = np.zeros(X_timepoints)
     alignment = np.zeros((X_dims, X_timepoints))
     cost = 0.0
-    distances = np.zeros(X_size)
     for i in range(X_size):
         curr_ts = X[i]
         curr_alignment, curr_cost = _get_alignment_path(
@@ -174,11 +170,10 @@ def _ba_one_iter_petitjean(
             transformed_y,
             gamma,
         )
-        distances[i] = curr_cost
 
         for j, k in curr_alignment:
             alignment[:, k] += curr_ts[:, j] * weights[i]
             sum[k] += 1 * weights[i]
         cost += curr_cost * weights[i]
 
-    return alignment / sum, cost, distances
+    return alignment / sum, cost

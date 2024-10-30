@@ -8,7 +8,7 @@ from aeon.clustering.averaging._ba_utils import (
     _get_alignment_path,
     _get_init_barycenter,
 )
-from aeon.distances import distance as distance_callable
+from aeon.distances import distance as distance_callable, pairwise_distance
 
 
 def random_subset_ssg_barycenter_average(
@@ -113,18 +113,19 @@ def random_subset_ssg_barycenter_average(
     )
 
     random_state = check_random_state(random_state)
+    X_size = _X.shape[0]
 
     cost = np.inf
     cost_prev = np.inf
+    distances_to_centre = np.zeros(X_size)
     if distance == "wdtw" or distance == "wddtw":
         if "g" not in kwargs:
             kwargs["g"] = 0.05
 
     current_step_size = initial_step_size
-    X_size = _X.shape[0]
     num_ts_to_use = min(X_size, max(1, int(ba_subset_size * X_size)))
     prev_barycenter = np.copy(barycenter)
-    prev_distances = np.zeros(X_size)
+    prev_distances_to_centre = np.zeros(X_size)
     # Loop up to 30 times
     for i in range(max_iters):
         # Randomly order the dataset
@@ -143,34 +144,26 @@ def random_subset_ssg_barycenter_average(
             **kwargs,
         )
 
-        cost = 0
-        distances = np.zeros(X_size)
-        for j in range(X_size):
-            curr = distance_callable(
-                barycenter,
-                _X[j],
-                metric=distance,
-                **kwargs,
-            )
-            distances[j] = curr
-            cost += curr
+        pw_dist = pairwise_distance(_X, barycenter, metric=distance, **kwargs)
+        cost = np.sum(pw_dist)
+        distances_to_centre = pw_dist.min(axis=1)
 
         # Cost is the sum of distance to the centre
         if abs(cost_prev - cost) < tol:
             if cost_prev < cost:
                 cost = cost_prev
                 barycenter = prev_barycenter
-                distances = prev_distances
+                distances_to_centre = prev_distances_to_centre
             break
         elif cost_prev < cost:
             cost = cost_prev
             barycenter = prev_barycenter
-            distances = prev_distances
+            distances_to_centre = prev_distances_to_centre
             break
-        else:
-            prev_barycenter = barycenter
-            cost_prev = cost
-            prev_distances = distances
+
+        prev_barycenter = barycenter
+        prev_distances_to_centre = distances_to_centre.copy()
+        cost_prev = cost
 
         if verbose:
             print(f"[Subset-SSG-BA] epoch {i}, cost {cost}")  # noqa: T001, T201
@@ -179,7 +172,7 @@ def random_subset_ssg_barycenter_average(
         print(f"[Subset-SSG-BA] finished {max_iters}, cost {cost}")  # noqa: T001, T201
 
     if return_distances:
-        return barycenter, distances
+        return barycenter, distances_to_centre
 
     return barycenter
 

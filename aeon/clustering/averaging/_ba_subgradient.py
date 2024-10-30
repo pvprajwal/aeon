@@ -8,7 +8,7 @@ from aeon.clustering.averaging._ba_utils import (
     _get_alignment_path,
     _get_init_barycenter,
 )
-from aeon.distances import distance as distance_callable
+from aeon.distances import distance as distance_callable, pairwise_distance
 
 
 def subgradient_barycenter_average(
@@ -122,7 +122,6 @@ def subgradient_barycenter_average(
     X_size = _X.shape[0]
 
     prev_barycenter = np.copy(barycenter)
-    prev_distances = np.zeros(X_size)
 
     for i in range(max_iters):
         shuffled_indices = random_state.permutation(X_size)
@@ -138,32 +137,27 @@ def subgradient_barycenter_average(
             i,
             **kwargs,
         )
-        cost = 0
-        distances = np.zeros(X_size)
-        for j in range(X_size):
-            curr = distance_callable(
-                barycenter,
-                _X[j],
-                metric=distance,
-                **kwargs,
-            )
-            distances[j] = curr
-            cost += curr
+
+        pw_dist = pairwise_distance(_X, barycenter, metric=distance, **kwargs)
+        cost = np.sum(pw_dist)
+        distances_to_centre = pw_dist.min(axis=1)
+
+        # Cost is the sum of distance to the centre
         if abs(cost_prev - cost) < tol:
             if cost_prev < cost:
                 cost = cost_prev
                 barycenter = prev_barycenter
-                distances = prev_distances
+                distances_to_centre = prev_distances_to_centre
             break
         elif cost_prev < cost:
             cost = cost_prev
             barycenter = prev_barycenter
-            distances = prev_distances
+            distances_to_centre = prev_distances_to_centre
             break
-        else:
-            prev_barycenter = barycenter
-            cost_prev = cost
-            prev_distances = distances
+
+        prev_barycenter = barycenter
+        prev_distances_to_centre = distances_to_centre.copy()
+        cost_prev = cost
 
         if verbose:
             print(f"[SSG-BA] epoch {i}, cost {cost}")  # noqa: T001, T201
@@ -172,7 +166,7 @@ def subgradient_barycenter_average(
         print(f"[SSG-BA] finished: {max_iters}, cost {cost}")  # noqa: T001, T201
 
     if return_distances:
-        return barycenter, distances
+        return barycenter, distances_to_centre
 
     return barycenter
 
