@@ -67,7 +67,6 @@ def run_lloyds_kesba(X_train, n_clusters):
     end = time.time()
     print("Converged at iteration: ", clst.n_iter_)
     print("Time to fit with Lloyds: ", end - start)
-    print("Lloyds Number of distance calls: ", clst.num_distance_calls)
 
     print("++++++++++++++++++Lloyds++++++++++++++++++++")
     return clst.labels_, clst.inertia_
@@ -92,7 +91,6 @@ def run_tony_kesba(X_train, n_clusters):
     end = time.time()
     print("Converged at iteration: ", clst.n_iter_)
     print("Time to fit with Tony Elkan: ", end - start)
-    print("Tony Elkan Number of distance calls: ", clst.num_distance_calls)
     print("++++++++++++++++Tony Elkan++++++++++++++++++")
     return clst.labels_, clst.inertia_
 
@@ -103,12 +101,11 @@ if __name__ == "__main__":
     run_tony = True
 
     X_train, y_train = load_gunpoint(split="train")
-    # X_train = make_example_3d_numpy(n_cases=100, n_channels=1, n_timepoints=100, return_y=False)
     # n_clusters = 5
-    X_train, y_train = load_acsf1(split="train")
-    X_train = np.random.random((300, 1, 100))
+    # X_train, y_train = load_acsf1(split="train")
+    # X_train = make_example_3d_numpy(n_cases=100, n_channels=1, n_timepoints=100, return_y=False, random_state=1)
     n_clusters = len(set(list(y_train)))
-    n_clusters = 2
+    # n_clusters = 5
 
     if run_tony:
         tony_elkan_labels, tony_elkan_inertia = run_tony_kesba(X_train, n_clusters)

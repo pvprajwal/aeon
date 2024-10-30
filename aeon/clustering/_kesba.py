@@ -65,7 +65,12 @@ class KESBA(BaseClusterer):
 
         self._random_state = None
         self._distance_params = {}
-        self._num_distance_calls = 0
+
+        self.init_distance_calls = 0
+        self.empty_cluster_distance_calls = 0
+        self.update_distance_calls = 0
+        self.assignment_distance_calls = 0
+        self.total_distance_calls = 0
         super().__init__(n_clusters)
 
     def _fit(self, X: np.ndarray, y=None):
@@ -90,6 +95,17 @@ class KESBA(BaseClusterer):
                 distances_to_centres,
                 labels,
             )
+        self.total_distance_calls = self.init_distance_calls + self.empty_cluster_distance_calls + self.update_distance_calls + self.assignment_distance_calls
+        if self.verbose:
+            print("+++++++++ Final output +++++++++")
+            print("Final inertia: ", self.inertia_)
+            print("Final number of iterations: ", self.n_iter_)
+            print("+++++++++ Number of distance calls +++++++++")
+            print("Init distance calls: ", self.init_distance_calls)
+            print("Empty cluster distance calls: ", self.empty_cluster_distance_calls)
+            print("Update distance calls: ", self.update_distance_calls)
+            print("Assignment distance calls: ", self.assignment_distance_calls)
+            print("Total distance calls: ", self.total_distance_calls)
 
     def _score(self, X, y=None):
         return -self.inertia_
@@ -225,6 +241,7 @@ class KESBA(BaseClusterer):
             metric=self.distance,
             **self._distance_params,
         )
+        self.assignment_distance_calls += len(cluster_centres) * len(cluster_centres)
         for i in range(X.shape[0]):
             min_dist = distances_to_centres[i]
             closest = labels[i]
@@ -238,6 +255,7 @@ class KESBA(BaseClusterer):
                 dist = distance_func(
                     X[i], cluster_centres[j], metric=self.distance, **self._distance_params
                 )
+                self.assignment_distance_calls += 1
                 if dist < min_dist:
                     min_dist = dist
                     closest = j
@@ -258,6 +276,7 @@ class KESBA(BaseClusterer):
         curr_pw = pairwise_distance(
             X, cluster_centres, metric=self.distance, **self._distance_params
         )
+        self.assignment_distance_calls += len(X) * len(cluster_centres)
         labels = curr_pw.argmin(axis=1)
         distances_to_centres = curr_pw.min(axis=1)
         inertia = np.sum(distances_to_centres ** 2)
@@ -274,7 +293,7 @@ class KESBA(BaseClusterer):
     ):
 
         for j in range(self.n_clusters):
-            curr_centre, dist_to_centre = elastic_barycenter_average(
+            curr_centre, dist_to_centre, num_distance_calls = elastic_barycenter_average(
                 X[labels == j],
                 method = self.average_method,
                 distance="msm",
@@ -282,8 +301,11 @@ class KESBA(BaseClusterer):
                 final_step_size=self.final_step_size,
                 random_state=self._random_state,
                 return_distances=True,
+                count_number_distance_calls=True,
+                ba_subset_size=self.ba_subset_size,
                 **self._distance_params,
             )
+            self.update_distance_calls += num_distance_calls
             cluster_centres[j] = curr_centre
             distances_to_centres[labels == j] = dist_to_centre
 
@@ -308,6 +330,7 @@ class KESBA(BaseClusterer):
             curr_pw = pairwise_distance(
                 X, cluster_centres, metric=self.distance, **self._distance_params
             )
+            self.empty_cluster_distance_calls += len(X) * len(cluster_centres)
             labels = curr_pw.argmin(axis=1)
             distances_to_centres = curr_pw.min(axis=1)
             empty_clusters = np.setdiff1d(np.arange(self.n_clusters), labels)
@@ -327,6 +350,7 @@ class KESBA(BaseClusterer):
         min_distances = pairwise_distance(
             X, X[initial_center_idx], metric=self.distance, **self._distance_params
         ).flatten()
+        self.init_distance_calls += len(X) * len(X[initial_center_idx])
         labels = np.zeros(X.shape[0], dtype=int)
 
         for i in range(1, self.n_clusters):
@@ -337,6 +361,7 @@ class KESBA(BaseClusterer):
             new_distances = pairwise_distance(
                 X, X[next_center_idx], metric=self.distance, **self._distance_params
             ).flatten()
+            self.init_distance_calls += len(X) * len(X[next_center_idx])
 
             closer_points = new_distances < min_distances
             min_distances[closer_points] = new_distances[closer_points]

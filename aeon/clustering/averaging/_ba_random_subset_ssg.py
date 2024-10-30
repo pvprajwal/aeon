@@ -24,6 +24,7 @@ def random_subset_ssg_barycenter_average(
     random_state: Optional[int] = None,
     ba_subset_size: float = 1.0,
     return_distances: bool = False,
+    count_number_distance_calls: bool = False,
     **kwargs,
 ) -> np.ndarray:
     """Compute the random subset ssg barycenter average of time series.
@@ -123,7 +124,7 @@ def random_subset_ssg_barycenter_average(
             kwargs["g"] = 0.05
 
     current_step_size = initial_step_size
-    num_ts_to_use = min(X_size, max(1, int(ba_subset_size * X_size)))
+    num_ts_to_use = min(X_size, max(10, int(ba_subset_size * X_size)))
     prev_barycenter = np.copy(barycenter)
     prev_distances_to_centre = np.zeros(X_size)
     # Loop up to 30 times
@@ -169,11 +170,15 @@ def random_subset_ssg_barycenter_average(
             print(f"[Subset-SSG-BA] epoch {i}, cost {cost}")  # noqa: T001, T201
 
     if verbose:
-        print(f"[Subset-SSG-BA] finished {max_iters}, cost {cost}")  # noqa: T001, T201
+        print(f"[Subset-SSG-BA] finished in {i + 1} iterations, cost {cost}")  # noqa: T001, T201
 
     if return_distances:
+        if count_number_distance_calls:
+            return barycenter, distances_to_centre, (i + 1) * num_ts_to_use
         return barycenter, distances_to_centre
 
+    if count_number_distance_calls:
+        return barycenter, (i + 1) * num_ts_to_use
     return barycenter
 
 
