@@ -130,6 +130,6 @@ if __name__ == "__main__":
             "Are Tony Elkan -> lloyds the inertia the same? ",
             tony_elkan_inertia == lloyds_inertia,
         )
-        if not tony_elkan_inertia == lloyds_inertia:
-            print("Tony Elkan inertia: ", tony_elkan_inertia)
-            print("Lloyds inertia: ", lloyds_inertia)
+        # if not tony_elkan_inertia == lloyds_inertia:
+        print("Tony Elkan inertia: ", tony_elkan_inertia)
+        print("Lloyds inertia: ", lloyds_inertia)

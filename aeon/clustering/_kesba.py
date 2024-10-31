@@ -11,12 +11,10 @@ from numpy.random import RandomState
 from sklearn.utils import check_random_state
 
 from aeon.clustering._k_means import EmptyClusterError
-from aeon.clustering.averaging import (
-    elastic_barycenter_average,
-)
-from aeon.distances import pairwise_distance
-from aeon.distances import distance as distance_func
+from aeon.clustering.averaging import elastic_barycenter_average
 from aeon.clustering.base import BaseClusterer
+from aeon.distances import distance as distance_func
+from aeon.distances import pairwise_distance
 
 
 class KESBA(BaseClusterer):
@@ -86,6 +84,7 @@ class KESBA(BaseClusterer):
             self.labels_, self.cluster_centers_, self.inertia_, self.n_iter_ = self._kesba_lloyds(
                 X,
                 cluster_centres,
+                distances_to_centres,
                 labels,
             )
         else:
@@ -182,6 +181,7 @@ class KESBA(BaseClusterer):
             self,
             X,
             cluster_centres,
+            distances_to_centres,
             labels,
     ):
         inertia = np.inf
@@ -189,6 +189,13 @@ class KESBA(BaseClusterer):
         prev_labels = None
         prev_cluster_centres = None
         for i in range(self.max_iter):
+            cluster_centres, distances_to_centres = self._kesba_update(
+                X,
+                cluster_centres,
+                labels,
+                distances_to_centres,
+            )
+
             labels, distances_to_centres, inertia = self._kesba_lloyds_assignment(
                 X,
                 cluster_centres,
@@ -213,12 +220,6 @@ class KESBA(BaseClusterer):
             prev_labels = labels.copy()
             prev_cluster_centres = cluster_centres.copy()
 
-            cluster_centres, distances_to_centres = self._kesba_update(
-                X,
-                cluster_centres,
-                labels,
-                distances_to_centres,
-            )
 
             if self.verbose is True:
                 print(f"Iteration {i}, inertia {prev_inertia}.")  # noqa: T001, T201
@@ -295,8 +296,10 @@ class KESBA(BaseClusterer):
         for j in range(self.n_clusters):
             curr_centre, dist_to_centre, num_distance_calls = elastic_barycenter_average(
                 X[labels == j],
+                max_iters=50,
                 method = self.average_method,
-                distance="msm",
+                # init_barycenter=cluster_centres[j],
+                distance=self.distance,
                 initial_step_size=self.initial_step_size,
                 final_step_size=self.final_step_size,
                 random_state=self._random_state,

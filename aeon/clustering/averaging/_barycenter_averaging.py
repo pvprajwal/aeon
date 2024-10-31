@@ -108,6 +108,12 @@ def elastic_barycenter_average(
        Pattern Recognition, 74, 340-358.
     """
     if X.shape[0] == 1:
+        if return_distances:
+            if count_number_distance_calls:
+                return X[0], np.zeros(X.shape[0]), 0
+            return X[0], np.zeros(X.shape[0])
+        if count_number_distance_calls:
+            return X[0], 0
         return X[0]
     if method == "petitjean":
         return petitjean_barycenter_average(

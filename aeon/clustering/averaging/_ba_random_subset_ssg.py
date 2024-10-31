@@ -8,7 +8,8 @@ from aeon.clustering.averaging._ba_utils import (
     _get_alignment_path,
     _get_init_barycenter,
 )
-from aeon.distances import distance as distance_callable, pairwise_distance
+from aeon.distances import distance as distance_callable
+from aeon.distances import pairwise_distance
 
 
 def random_subset_ssg_barycenter_average(
