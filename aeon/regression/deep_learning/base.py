@@ -8,14 +8,14 @@ because we can generalise tags and _predict
 __maintainer__ = []
 __all__ = ["BaseDeepRegressor"]
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 import numpy as np
 
 from aeon.regression.base import BaseRegressor
 
 
-class BaseDeepRegressor(BaseRegressor, ABC):
+class BaseDeepRegressor(BaseRegressor):
     """Abstract base class for deep learning time series regression.
 
     The base classifier provides a deep learning default method for
@@ -35,10 +35,9 @@ class BaseDeepRegressor(BaseRegressor, ABC):
         "X_inner_type": "numpy3D",
         "capability:multivariate": True,
         "algorithm_type": "deeplearning",
-        "non-deterministic": True,
-        "cant-pickle": True,
+        "non_deterministic": True,
+        "cant_pickle": True,
         "python_dependencies": "tensorflow",
-        "python_version": "<3.12",
     }
 
     def __init__(self, batch_size=40, last_file_name="last_model"):
@@ -130,4 +129,18 @@ class BaseDeepRegressor(BaseRegressor, ABC):
         import tensorflow as tf
 
         self.model_ = tf.keras.models.load_model(model_path)
-        self._is_fitted = True
+        self.is_fitted = True
+
+    def _get_model_checkpoint_callback(self, callbacks, file_path, file_name):
+        import tensorflow as tf
+
+        model_checkpoint_ = tf.keras.callbacks.ModelCheckpoint(
+            filepath=file_path + file_name + ".keras",
+            monitor="loss",
+            save_best_only=True,
+        )
+
+        if isinstance(callbacks, list):
+            return callbacks + [model_checkpoint_]
+        else:
+            return [callbacks] + [model_checkpoint_]

@@ -1,33 +1,39 @@
 """Residual Network (ResNet) for clustering."""
 
-__maintainer__ = []
+__maintainer__ = ["hadifawaz1999"]
 __all__ = ["AEResNetClusterer"]
 
 import gc
 import os
+import sys
 import time
 from copy import deepcopy
 
 from sklearn.utils import check_random_state
 
 from aeon.clustering.deep_learning.base import BaseDeepClusterer
+from aeon.clustering.dummy import DummyClusterer
 from aeon.networks import AEResNetNetwork
 
 
 class AEResNetClusterer(BaseDeepClusterer):
     """
-    Residual Neural Network (RNN).
+    Auto-Encoder with Residual Network backbone for clustering.
 
     Adapted from the implementation used in [1]_.
 
     Parameters
     ----------
     n_clusters : int, default=None
-    Number of clusters for the deep learning model.
-    clustering_algorithm : str, default="kmeans"
-        The clustering algorithm used in the latent space.
+        Please use 'estimator' parameter.
+    estimator : aeon clusterer, default=None
+        An aeon estimator to be built using the transformed data.
+        Defaults to aeon TimeSeriesKMeans() with euclidean distance
+        and mean averaging method and n_clusters set to 2.
+    clustering_algorithm : str, default="deprecated"
+        Please use 'estimator' parameter.
     clustering_params : dict, default=None
-        Dictionary containing the parameters of the clustering algorithm chosen.
+        Please use 'estimator' parameter.
     latent_space_dim : int, default=128
         Dimension of the latent space of the auto-encoder.
     temporal_latent_space : bool, default = False
@@ -40,7 +46,7 @@ class AEResNetClusterer(BaseDeepClusterer):
         The number of convolution filters for all the convolution layers in the same
         residual block, if not a list, the same number of filters is used in all
         convolutions of all residual blocks.
-    kernel_sizes : int or list of int, default = [8, 5, 3]
+    kernel_size : int or list of int, default = [8, 5, 3]
         The kernel size of all the convolution layers in one residual block, if not
         a list, the same kernel size is used in all convolution layers.
     strides : int or list of int, default = 1
@@ -94,9 +100,13 @@ class AEResNetClusterer(BaseDeepClusterer):
     verbose : boolean, default = False
         whether to output extra information
     loss : string, default = "mean_squared_error"
-        fit parameter for the keras model.
+        fit parameter for the keras model. "multi_rec" for multiple mse loss.
+        Multiple mse loss computes mean squared error between all embeddings
+        of encoder layers with the corresponding reconstructions of the
+        decoder layers.
     optimizer : keras.optimizer, default = keras.optimizers.Adam()
-    metrics : list of strings, default = ["accuracy"]
+    metrics : list of strings, default = ["mean_squared_error"]
+        will be set to mean_squared_error as default if None
 
     Notes
     -----
@@ -114,16 +124,17 @@ class AEResNetClusterer(BaseDeepClusterer):
     >>> from aeon.clustering.deep_learning import AEResNetClusterer
     >>> from aeon.datasets import load_unit_test
     >>> X_train, y_train = load_unit_test(split="train")
-    >>> ae_resnet = AEResNetClusterer(n_clusters=2,n_epochs=20) # doctest: +SKIP
+    >>> ae_resnet = AEResNetClusterer(n_epochs=20) # doctest: +SKIP
     >>> ae_resnet.fit(X_train, y_train) # doctest: +SKIP
     AEResNetClusterer(...)
     """
 
     def __init__(
         self,
-        n_clusters,
+        n_clusters=None,
+        estimator=None,
         n_residual_blocks=3,
-        clustering_algorithm="kmeans",
+        clustering_algorithm="deprecated",
         clustering_params=None,
         n_conv_per_residual_block=3,
         n_filters=None,
@@ -175,6 +186,7 @@ class AEResNetClusterer(BaseDeepClusterer):
         self.history = None
 
         super().__init__(
+            estimator=estimator,
             n_clusters=n_clusters,
             clustering_algorithm=clustering_algorithm,
             clustering_params=clustering_params,
@@ -215,6 +227,15 @@ class AEResNetClusterer(BaseDeepClusterer):
         import numpy as np
         import tensorflow as tf
 
+        if self.metrics is None:
+            self._metrics = ["mean_squared_error"]
+        elif isinstance(self.metrics, list):
+            self._metrics = self.metrics
+        elif isinstance(self.metrics, str):
+            self._metrics = [self.metrics]
+        else:
+            raise ValueError("Metrics should be a list, string, or None.")
+
         self.optimizer_ = (
             tf.keras.optimizers.Adam(learning_rate=0.01)
             if self.optimizer is None
@@ -238,6 +259,7 @@ class AEResNetClusterer(BaseDeepClusterer):
         model.compile(
             loss=self.loss,
             optimizer=self.optimizer_,
+            metrics=self._metrics,
         )
 
         return model
@@ -269,8 +291,8 @@ class AEResNetClusterer(BaseDeepClusterer):
             self.best_file_name if self.save_best_model else str(time.time_ns())
         )
 
-        self.callbacks_ = (
-            [
+        if self.callbacks is None:
+            self.callbacks_ = [
                 tf.keras.callbacks.ReduceLROnPlateau(
                     monitor="loss", factor=0.5, patience=50, min_lr=0.0001
                 ),
@@ -280,23 +302,36 @@ class AEResNetClusterer(BaseDeepClusterer):
                     save_best_only=True,
                 ),
             ]
-            if self.callbacks is None
-            else self.callbacks
-        )
+        else:
+            self.callbacks_ = self._get_model_checkpoint_callback(
+                callbacks=self.callbacks,
+                file_path=self.file_path,
+                file_name=self.file_name_,
+            )
 
         if self.use_mini_batch_size:
             mini_batch_size = min(self.batch_size, X.shape[0] // 10)
         else:
             mini_batch_size = self.batch_size
 
-        self.history = self.training_model_.fit(
-            X,
-            X,
-            batch_size=mini_batch_size,
-            epochs=self.n_epochs,
-            verbose=self.verbose,
-            callbacks=self.callbacks_,
-        )
+        if not self.loss == "multi_rec":
+            self.history = self.training_model_.fit(
+                X,
+                X,
+                batch_size=mini_batch_size,
+                epochs=self.n_epochs,
+                verbose=self.verbose,
+                callbacks=self.callbacks_,
+            )
+
+        elif self.loss == "multi_rec":
+            self.history = self._fit_multi_rec_model(
+                autoencoder=self.training_model_,
+                inputs=X,
+                outputs=X,
+                batch_size=mini_batch_size,
+                epochs=self.n_epochs,
+            )
 
         try:
             self.model_ = tf.keras.models.load_model(
@@ -319,10 +354,134 @@ class AEResNetClusterer(BaseDeepClusterer):
         # Transpose to conform to Keras input style.
         X = X.transpose(0, 2, 1)
         latent_space = self.model_.layers[1].predict(X)
-        return self.clusterer.score(latent_space)
+        return self._estimator.score(latent_space)
+
+    def _fit_multi_rec_model(
+        self,
+        autoencoder,
+        inputs,
+        outputs,
+        batch_size,
+        epochs,
+    ):
+        import tensorflow as tf
+
+        train_dataset = tf.data.Dataset.from_tensor_slices((inputs, outputs))
+        train_dataset = train_dataset.shuffle(buffer_size=1024).batch(batch_size)
+
+        if isinstance(self.optimizer_, str):
+            self.optimizer_ = tf.keras.optimizers.get(self.optimizer_)
+
+        history = {"loss": []}
+
+        def layerwise_mse_loss(autoencoder, inputs, outputs):
+            def loss(y_true, y_pred):
+                # Calculate MSE for each layer in the encoder and decoder
+                mse = 0
+
+                _encoder_intermediate_outputs = (
+                    []
+                )  # Store embeddings of each layer in the Encoder
+                _decoder_intermediate_outputs = (
+                    []
+                )  # Store embeddings of each layer in the Decoder
+
+                encoder = autoencoder.layers[1]  # Returns Functional API Models.
+                decoder = autoencoder.layers[2]  # Returns Functional API Models.
+
+                # Run the models since the below given loop misses the latent space
+                # layer which doesn't contribute to the loss.
+                logits = encoder(inputs)
+                __dec_outputs = decoder(logits)
+
+                # Encoder
+                for i in range(self.n_residual_blocks):
+                    _activation_layer = encoder.get_layer(f"__act_encoder_block{i}")
+                    _model = tf.keras.models.Model(
+                        inputs=encoder.input, outputs=_activation_layer.output
+                    )
+                    __output = _model(inputs, training=True)
+                    _encoder_intermediate_outputs.append(__output)
+
+                # Decoder
+                for i in range(self.n_residual_blocks):
+                    _activation_layer = decoder.get_layer(f"__act_decoder_block{i}")
+                    _model = tf.keras.models.Model(
+                        inputs=decoder.input, outputs=_activation_layer.output
+                    )
+                    __output = _model(logits, training=True)
+                    _decoder_intermediate_outputs.append(__output)
+
+                if not (
+                    len(_encoder_intermediate_outputs)
+                    == len(_decoder_intermediate_outputs)
+                ):
+                    raise ValueError("The Auto-Encoder must be symmetric in nature.")
+
+                for enc_output, dec_output in zip(
+                    _encoder_intermediate_outputs, _decoder_intermediate_outputs
+                ):
+                    mse += tf.keras.backend.mean(
+                        tf.keras.backend.square(enc_output - dec_output)
+                    )
+
+                inputs_casted = tf.cast(inputs, tf.float64)
+                __dec_outputs_casted = tf.cast(__dec_outputs, tf.float64)
+                return tf.cast(mse, tf.float64) + tf.cast(
+                    tf.reduce_mean(tf.square(inputs_casted - __dec_outputs_casted)),
+                    tf.float64,
+                )
+
+            return loss
+
+        # Initialize callbacks
+        for callback in self.callbacks_:
+            callback.set_model(autoencoder)
+            callback.on_train_begin()
+
+        for epoch in range(epochs):
+            epoch_loss = 0
+            num_batches = 0
+            for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
+                with tf.GradientTape() as tape:
+                    # Calculate the actual loss by calling the loss function
+                    loss_func = layerwise_mse_loss(
+                        autoencoder=autoencoder,
+                        inputs=x_batch_train,
+                        outputs=y_batch_train,
+                    )
+                    loss_value = loss_func(y_batch_train, autoencoder(x_batch_train))
+
+                grads = tape.gradient(loss_value, autoencoder.trainable_weights)
+                self.optimizer_.apply_gradients(
+                    zip(grads, autoencoder.trainable_weights)
+                )
+
+                epoch_loss += float(loss_value)
+                num_batches += 1
+
+                # Update callbacks on batch end
+                for callback in self.callbacks_:
+                    callback.on_batch_end(step, {"loss": float(loss_value)})
+
+            epoch_loss /= num_batches
+            history["loss"].append(epoch_loss)
+
+            sys.stdout.write(
+                "Training loss at epoch %d: %.4f\n" % (epoch, float(epoch_loss))
+            )
+
+            for callback in self.callbacks_:
+                callback.on_epoch_end(epoch, {"loss": float(epoch_loss)})
+
+        # Finalize callbacks
+        for callback in self.callbacks_:
+            callback.on_train_end()
+
+        return history
 
     @classmethod
-    def get_test_params(cls, parameter_set="default"):
+    def _get_test_params(cls, parameter_set="default"):
         """Return testing parameter settings for the estimator.
 
         Parameters
@@ -341,20 +500,16 @@ class AEResNetClusterer(BaseDeepClusterer):
             Parameters to create testing instances of the class.
             Each dict are parameters to construct an "interesting" test instance, i.e.,
             `MyClass(**params)` or `MyClass(**params[i])` creates a valid test instance.
-            `create_test_instance` uses the first (or only) dictionary in `params`.
         """
         param = {
-            "n_clusters": 2,
             "n_epochs": 1,
             "batch_size": 4,
             "n_residual_blocks": 1,
             "n_conv_per_residual_block": 1,
-            "clustering_params": {
-                "distance": "euclidean",
-                "averaging_method": "mean",
-                "n_init": 1,
-                "max_iter": 30,
-            },
+            "n_filters": 1,
+            "kernel_size": 2,
+            "use_bias": False,
+            "estimator": DummyClusterer(n_clusters=2),
         }
 
         test_params = [param]

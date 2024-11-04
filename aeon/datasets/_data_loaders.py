@@ -1,5 +1,7 @@
 """Dataset loading functions."""
 
+from typing import Optional
+
 __all__ = [  # Load functions
     "load_from_tsfile",
     "load_from_tsf_file",
@@ -252,12 +254,13 @@ def load_from_tsfile(
 
     Returns
     -------
-    data: Union[np.ndarray,list]
+    data: np.ndarray or list of np.ndarray
         time series data, np.ndarray (n_cases, n_channels, n_timepoints) if equal
         length time series, list of [n_cases] np.ndarray (n_channels, n_timepoints)
         if unequal length series.
-    y : target variable, np.ndarray of string or int
-    meta_data : dict (optional).
+    y : np.ndarray of string or int
+        target variable
+    meta_data : dict, optional.
         dictionary of characteristics, with keys
         "problemname" (string), booleans: "timestamps", "missing", "univariate",
         "equallength", "classlabel", "targetlabel" and "class_values": [],
@@ -266,9 +269,11 @@ def load_from_tsfile(
     ------
     IOError if the load fails.
     """
-    # Check file ends in .ts, if not, insert
-    if not full_file_path_and_name.endswith(".ts"):
-        full_file_path_and_name = full_file_path_and_name + ".ts"
+    # split the file path into the root and the extension
+    root, ext = os.path.splitext(full_file_path_and_name)
+    # Append .ts if no extension if found
+    if not ext:
+        full_file_path_and_name = root + ".ts"
     # Open file
     with open(full_file_path_and_name, encoding="utf-8") as file:
         # Read in headers
@@ -292,7 +297,6 @@ def load_from_tsfile(
 def _load_saved_dataset(
     name,
     split=None,
-    return_X_y=True,
     return_type=None,
     local_module=MODULE,
     local_dirname=DIRNAME,
@@ -310,9 +314,6 @@ def _load_saved_dataset(
     split: None or {"TRAIN", "TEST"}, default=None
         Whether to load the train or test instances of the problem.
         By default it loads both train and test instances into a single data structure.
-    return_X_y: bool, default=True
-        If True, returns (time series, target) separately. If False it returns (X,
-        y) as a tuple.
     return_data_type : str, default = None
         "numpy3D"/"numpy3d"/"np3D": recommended for equal length series, "np-list"
         for unequal length series that cannot be stored in numpy arrays.
@@ -331,11 +332,14 @@ def _load_saved_dataset(
     Returns
     -------
     X: Data stored in specified `return_type`
-        The time series data for the problem, with n instances
-    y: 1D numpy array of length n, only returned if return_X_y if True
-        The class labels for each time series instance in X
-        If return_X_y is False, y is appended to X instead.
-    meta: meta data dictionary, only returned if return_meta is True
+        The time series collection for the problem.
+    y: 1D numpy array of length len(X)
+     The class labels for each time series instance in X.
+
+    meta: dict
+        Dictionary of data characteristics, with keys
+        "problemname" (string), booleans: "timestamps", "missing", "univariate",
+        "equallength", "classlabel", "targetlabel" and list: "class_values",
 
     Raises
     ------
@@ -374,18 +378,10 @@ def _load_saved_dataset(
         raise ValueError("Invalid `split` value =", split)
     if return_type is not None:
         X = convert_collection(X, return_type)
-
-    if return_X_y:
-        if return_meta:
-            return X, y, meta_data
-        else:
-            return X, y
+    if return_meta:
+        return X, y, meta_data
     else:
-        combo = (X, y)
-        if return_meta:
-            return combo, meta_data
-        else:
-            return combo
+        return X, y
 
 
 def download_dataset(name, save_path=None):
@@ -487,7 +483,7 @@ def _download_and_extract(url, extract_path=None):
 
 
 def _load_tsc_dataset(
-    name, split, return_X_y=True, return_type=None, extract_path=None, return_meta=False
+    name, split, return_type=None, extract_path=None, return_meta=False
 ):
     """Load time series classification datasets (helper function).
 
@@ -497,9 +493,6 @@ def _load_tsc_dataset(
     split: None or one of "TRAIN", "TEST", default=None
         Whether to load the train or test instances of the problem.
         By default it loads both train and test instances (in a single container).
-    return_X_y: bool, default=True
-        If True, returns (features, target) separately instead of a single
-        dataframe with columns for features and the target.
     return_data_type : str, optional, default = None
         "numpy3D"/"numpy3d"/"np3D": recommended for equal length series
         "numpy2D"/"numpy2d"/"np2d": can be used for univariate equal length series,
@@ -514,10 +507,9 @@ def _load_tsc_dataset(
     Returns
     -------
     X: Data stored in specified `return_type`
-        The time series data for the problem, with n instances
-    y: 1D numpy array of length n, only returned if return_X_y if True
-        The class labels for each time series instance in X
-        If return_X_y is False, y is appended to X instead.
+        The time series data for the problem, with n instances.
+    y: 1D numpy array of length len(X)
+        The class labels for each time series instance in X.
 
     Raises
     ------
@@ -560,7 +552,6 @@ def _load_tsc_dataset(
     return _load_saved_dataset(
         name,
         split=split,
-        return_X_y=return_X_y,
         return_type=return_type,
         local_module=local_module,
         local_dirname=local_dirname,
@@ -586,7 +577,8 @@ def load_from_arff_file(
     -------
     data: np.ndarray
         time series data, np.ndarray (n_cases, n_channels, n_timepoints)
-    y : target variable, np.ndarray of string or int
+    y : np.ndarray of string or int
+        target variable
     """
     instance_list = []
     class_val_list = []
@@ -661,7 +653,8 @@ def load_from_tsv_file(full_file_path_and_name):
     -------
     data: np.ndarray
         time series data, np.ndarray (n_cases, 1, n_timepoints)
-    y : target variable, np.ndarray of string or int
+    y : np.ndarray of string or int
+        target variable
 
     """
     df = pd.read_csv(full_file_path_and_name, sep="\t", header=None)
@@ -675,7 +668,7 @@ def load_from_tsv_file(full_file_path_and_name):
 def _convert_tsf_to_hierarchical(
     data: pd.DataFrame,
     metadata,
-    freq: str = None,
+    freq: Optional[str] = None,
     value_column_name: str = "series_value",
 ) -> pd.DataFrame:
     """Convert the data from default_tsf to pd_multiindex_hier.
@@ -959,14 +952,15 @@ def load_forecasting(name, extract_path=None, return_metadata=False):
     extract_path : optional (default = None)
         Path of the location for the data file. If none, data is written to
         os.path.dirname(__file__)/data/
-    return_metadata : boolean, default = True
+    return_metadata : boolean, default = False
         If True, returns a tuple (data, metadata)
 
     Returns
     -------
-    X: Data stored in a dataframe, each column a series
-    metadata: optional
-        returns the following meta data
+    X: pd.DataFrame
+        Data stored in a dataframe, each column a series
+    metadata: dict, optional
+        returns the following metadata
         frequency,forecast_horizon,contain_missing_values,contain_equal_length
 
     Raises
@@ -1127,10 +1121,10 @@ def load_regression(
     Returns
     -------
     X: np.ndarray or list of np.ndarray
-    y: numpy array
+    y: np.ndarray
         The target response variable for each case in X
-    metadata: optional
-        returns the following meta data
+    metadata: dict, optional
+        returns the following metadata
         'problemname',timestamps, missing,univariate,equallength.
         targetlabel should be true, and classlabel false
 
@@ -1278,7 +1272,7 @@ def load_classification(
         format <name>_TRAIN.ts or <name>_TEST.ts.
     extract_path : str, default=None
         the path to look for the data. If no path is provided, the function
-        looks in `aeon/datasets/data/`. If a path is given, it can be absolute,
+        looks in `aeon/datasets/local_data/`. If a path is given, it can be absolute,
         e.g. C:/Temp/ or relative, e.g. Temp/ or ./Temp/.
     return_metadata : boolean, default = True
         If True, returns a tuple (X, y, metadata)
@@ -1300,10 +1294,10 @@ def load_classification(
     Returns
     -------
     X: np.ndarray or list of np.ndarray
-    y: numpy array
+    y: np.ndarray
         The class labels for each case in X
-    metadata: optional
-        returns the following meta data
+    metadata: dict, optional
+        returns the following metadata
         'problemname',timestamps, missing,univariate,equallength, class_values
         targetlabel should be false, and classlabel true
 

@@ -84,6 +84,17 @@ class WEASEL(BaseClassifier):
         If set to True, a LogisticRegression will be trained, which does support
         predict_proba(), yet is slower and typically less accurate. predict_proba() is
         needed for example in Early-Classification like TEASER.
+    class_weight{“balanced”, “balanced_subsample”}, dict or list of dicts, default=None
+        From sklearn documentation:
+        If not given, all classes are supposed to have weight one.
+        The “balanced” mode uses the values of y to automatically adjust weights
+        inversely proportional to class frequencies in the input data as
+        n_samples / (n_classes * np.bincount(y))
+        The “balanced_subsample” mode is the same as “balanced” except that weights
+        are computed based on the bootstrap sample for every tree grown.
+        For multi-output, the weights of each column of y will be multiplied.
+        Note that these weights will be multiplied with sample_weight (passed through
+        the fit method) if sample_weight is specified.
     random_state : int, RandomState instance or None, default=None
         If `int`, random_state is the seed used by the random number generator;
         If `RandomState` instance, random_state is the random number generator;
@@ -112,8 +123,8 @@ class WEASEL(BaseClassifier):
     --------
     >>> from aeon.classification.dictionary_based import WEASEL
     >>> from aeon.datasets import load_unit_test
-    >>> X_train, y_train = load_unit_test(split="train", return_X_y=True)
-    >>> X_test, y_test = load_unit_test(split="test", return_X_y=True)
+    >>> X_train, y_train = load_unit_test(split="train")
+    >>> X_test, y_test = load_unit_test(split="test")
     >>> clf = WEASEL(window_inc=4)
     >>> clf.fit(X_train, y_train)
     WEASEL(...)
@@ -133,9 +144,10 @@ class WEASEL(BaseClassifier):
         window_inc=2,
         p_threshold=0.05,
         alphabet_size=4,
-        n_jobs=1,
         feature_selection="chi2",
         support_probabilities=False,
+        class_weight=None,
+        n_jobs=1,
         random_state=None,
     ):
         self.alphabet_size = alphabet_size
@@ -146,7 +158,6 @@ class WEASEL(BaseClassifier):
         self.word_lengths = [4, 6]
         self.bigrams = bigrams
         self.binning_strategy = binning_strategy
-        self.random_state = random_state
         self.min_window = 6
         self.max_window = 100
         self.feature_selection = feature_selection
@@ -157,9 +168,14 @@ class WEASEL(BaseClassifier):
         self.n_cases = 0
         self.SFA_transformers = []
         self.clf = None
-        self.n_jobs = n_jobs
         self.support_probabilities = support_probabilities
+
+        self.random_state = random_state
+        self.n_jobs = n_jobs
+        self.class_weight = class_weight
+
         set_num_threads(n_jobs)
+
         super().__init__()
 
     def _fit(self, X, y):
@@ -223,13 +239,15 @@ class WEASEL(BaseClassifier):
 
         # Ridge Classifier does not give probabilities
         if not self.support_probabilities:
-            self.clf = RidgeClassifierCV(alphas=np.logspace(-3, 3, 10))
+            self.clf = RidgeClassifierCV(
+                alphas=np.logspace(-3, 3, 10), class_weight=self.class_weight
+            )
         else:
             self.clf = LogisticRegression(
                 max_iter=5000,
                 solver="liblinear",
                 dual=True,
-                # class_weight="balanced",
+                class_weight=self.class_weight,
                 penalty="l2",
                 random_state=self.random_state,
                 n_jobs=self.n_jobs,
@@ -298,7 +316,7 @@ class WEASEL(BaseClassifier):
         return 1 if self.n_timepoints < 100 else self.window_inc
 
     @classmethod
-    def get_test_params(cls, parameter_set="default"):
+    def _get_test_params(cls, parameter_set="default"):
         """Return testing parameter settings for the estimator.
 
         Parameters
@@ -313,7 +331,6 @@ class WEASEL(BaseClassifier):
             Parameters to create testing instances of the class.
             Each dict are parameters to construct an "interesting" test instance, i.e.,
             `MyClass(**params)` or `MyClass(**params[i])` creates a valid test instance.
-            `create_test_instance` uses the first (or only) dictionary in `params`.
         """
         return {
             "window_inc": 4,

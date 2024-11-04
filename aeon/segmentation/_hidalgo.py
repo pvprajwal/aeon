@@ -78,7 +78,7 @@ class HidalgoSegmenter(BaseSegmenter):
     >>> X[:6, 1:] += 10
     >>> X[6:, 1:] = 0
     >>> model = HidalgoSegmenter(K=2, burn_in=0.8, n_iter=100, seed=10)
-    >>> seg = model.fit_predict(X)
+    >>> seg = model.fit_predict(X, axis=0)
     >>> seg.tolist()
     [1, 1, 1, 1, 1, 1, 0, 0, 0, 0]
     """
@@ -653,7 +653,7 @@ class HidalgoSegmenter(BaseSegmenter):
         return self._Z
 
     @classmethod
-    def get_test_params(cls, parameter_set="default"):
+    def _get_test_params(cls, parameter_set="default"):
         """Return testing parameter settings for the estimator.
 
         Parameters
@@ -671,7 +671,6 @@ class HidalgoSegmenter(BaseSegmenter):
             Parameters to create testing instances of the class
             Each dict are parameters to construct an "interesting" test instance, i.e.,
             `MyClass(**params)` or `MyClass(**params[i])` creates a valid test instance.
-            `create_test_instance` uses the first (or only) dictionary in `params`
         """
         return {
             "metric": "euclidean",
