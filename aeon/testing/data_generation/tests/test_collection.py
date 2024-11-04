@@ -1,4 +1,4 @@
-"""Tests for datagen functions."""
+"""Tests for collection data generation functions."""
 
 __maintainer__ = ["MatthewMiddlehurst"]
 
@@ -7,14 +7,13 @@ import pandas as pd
 import pytest
 
 from aeon.testing.data_generation import (
-    make_example_2d_dataframe,
-    make_example_2d_numpy,
+    make_example_2d_dataframe_collection,
+    make_example_2d_numpy_collection,
     make_example_2d_numpy_list,
     make_example_3d_numpy,
     make_example_3d_numpy_list,
     make_example_dataframe_list,
     make_example_multi_index_dataframe,
-    make_example_nested_dataframe,
 )
 from aeon.utils.validation.collection import get_type
 
@@ -60,7 +59,7 @@ def test_make_example_3d_numpy(
 @pytest.mark.parametrize("regression", REGRESSION)
 def test_make_example_2d_numpy(n_cases, n_timepoints, n_classes, regression):
     """Test generated numpy2d data is in the correct format."""
-    X, y = make_example_2d_numpy(
+    X, y = make_example_2d_numpy_collection(
         n_cases=n_cases,
         n_timepoints=n_timepoints,
         n_labels=n_classes,
@@ -203,7 +202,7 @@ def test_make_example_dataframe_list(
 @pytest.mark.parametrize("regression", REGRESSION)
 def test_make_example_2d_dataframe(n_cases, n_timepoints, n_classes, regression):
     """Test generated pd-wide data is in the correct format."""
-    X, y = make_example_2d_dataframe(
+    X, y = make_example_2d_dataframe_collection(
         n_cases=n_cases,
         n_timepoints=n_timepoints,
         n_labels=n_classes,
@@ -215,44 +214,6 @@ def test_make_example_2d_dataframe(n_cases, n_timepoints, n_classes, regression)
     assert X.shape == (n_cases, n_timepoints)
     assert y.shape == (n_cases,)
     assert get_type(X) == "pd-wide"
-    if regression:
-        assert y.dtype == np.float32
-    else:
-        assert len(np.unique(y)) == n_classes
-
-
-@pytest.mark.parametrize("n_cases", N_CASES)
-@pytest.mark.parametrize("n_channels", N_CHANNELS)
-@pytest.mark.parametrize("min_n_timepoints", MIN_N_TIMEPOINTS)
-@pytest.mark.parametrize("max_n_timepoints", MAX_N_TIMEPOINTS)
-@pytest.mark.parametrize("n_classes", N_CLASSES)
-@pytest.mark.parametrize("regression", REGRESSION)
-def test_make_example_nested_dataframe(
-    n_cases, n_channels, min_n_timepoints, max_n_timepoints, n_classes, regression
-):
-    """Test generated nested dataframe data is in the correct format."""
-    X, y = make_example_nested_dataframe(
-        n_cases=n_cases,
-        n_labels=n_classes,
-        n_channels=n_channels,
-        min_n_timepoints=min_n_timepoints,
-        max_n_timepoints=max_n_timepoints,
-        regression_target=regression,
-    )
-
-    assert isinstance(X, pd.DataFrame)
-    assert isinstance(y, np.ndarray)
-    assert isinstance(X.iloc[0][0], pd.Series)
-    assert X.shape == (n_cases, n_channels)
-    if min_n_timepoints == max_n_timepoints:
-        assert X.iloc[0][0].shape[0] == min_n_timepoints
-    else:
-        assert (
-            X.iloc[0][0].shape[0] >= min_n_timepoints
-            and X.iloc[0][0].shape[0] <= max_n_timepoints
-        )
-    assert y.shape == (n_cases,)
-    assert get_type(X) == "nested_univ"
     if regression:
         assert y.dtype == np.float32
     else:

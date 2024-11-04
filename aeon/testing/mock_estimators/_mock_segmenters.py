@@ -9,7 +9,7 @@ class MockSegmenter(BaseSegmenter):
     """Mock segmenter for testing."""
 
     def __init__(self):
-        super().__init__()
+        super().__init__(axis=1)
 
     _tags = {
         "capability:missing_values": True,
@@ -26,7 +26,7 @@ class MockSegmenter(BaseSegmenter):
         return np.array([1])
 
     @classmethod
-    def get_test_params(cls, parameter_set="default"):
+    def _get_test_params(cls, parameter_set="default"):
         """
         Return testing parameter settings for the estimator.
 

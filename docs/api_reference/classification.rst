@@ -22,6 +22,8 @@ Convolution-based
     HydraClassifier
     MultiRocketHydraClassifier
     RocketClassifier
+    MiniRocketClassifier
+    MultiRocketClassifier
 
 Deep learning
 -------------
@@ -32,7 +34,8 @@ Deep learning
     :toctree: auto_generated/
     :template: class.rst
 
-    CNNClassifier
+    BaseDeepClassifier
+    TimeCNNClassifier
     EncoderClassifier
     FCNClassifier
     InceptionTimeClassifier
@@ -56,6 +59,7 @@ Dictionary-based
     ContractableBOSS
     IndividualBOSS
     IndividualTDE
+    MrSQMClassifier
     MUSE
     REDCOMETS
     TemporalDictionaryEnsemble
@@ -73,6 +77,8 @@ Distance-based
 
     ElasticEnsemble
     KNeighborsTimeSeriesClassifier
+    ProximityForest
+    ProximityTree
 
 Feature-based
 -------------
@@ -132,7 +138,6 @@ Shapelet-based
     :template: class.rst
 
     LearningShapeletClassifier
-    MrSQMClassifier
     RDSTClassifier
     SASTClassifier
     ShapeletTransformClassifier
@@ -190,10 +195,9 @@ Composition
     :toctree: auto_generated/
     :template: class.rst
 
+    ClassifierChannelEnsemble
+    ClassifierEnsemble
     ClassifierPipeline
-    ChannelEnsembleClassifier
-    WeightedEnsembleClassifier
-
 
 Base
 ----

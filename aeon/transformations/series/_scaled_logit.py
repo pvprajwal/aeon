@@ -20,13 +20,6 @@ class ScaledLogitSeriesTransformer(BaseSeriesTransformer):
     accordingly. The transform is applied to all scalar elements of the input array
     individually.
 
-    Combined with an aeon.forecasting.compose.TransformedTargetForecaster, it ensures
-    that the forecast stays between the specified bounds (lower_bound, upper_bound).
-
-    Default is lower_bound = upper_bound = None, i.e., the identity transform.
-
-    The logarithm transform is obtained for lower_bound = 0, upper_bound = None.
-
     Parameters
     ----------
     lower_bound : float, optional, default=None
@@ -34,20 +27,6 @@ class ScaledLogitSeriesTransformer(BaseSeriesTransformer):
     upper_bound : float, optional, default=None
         upper bound of inverse transform function
 
-    See Also
-    --------
-    aeon.transformations.boxcox.LogTransformer :
-        Transformer input data using natural log. Can help normalize data and
-        compress variance of the series.
-    aeon.transformations.boxcox.BoxCoxTransformer :
-        Applies Box-Cox power transformation. Can help normalize data and
-        compress variance of the series.
-    aeon.transformations.exponent.ExponentTransformer :
-        Transform input data by raising it to an exponent. Can help compress
-        variance of series if a fractional exponent is supplied.
-    aeon.transformations.exponent.SqrtTransformer :
-        Transform input data by taking its square root. Can help compress
-        variance of input series.
 
     Notes
     -----
@@ -74,22 +53,6 @@ class ScaledLogitSeriesTransformer(BaseSeriesTransformer):
     .. [2] Hyndman, R.J., & Athanasopoulos, G. (2021) Forecasting: principles and
         practice, 3rd edition, OTexts: Melbourne, Australia. OTexts.com/fpp3.
         Accessed on January 24th 2022.
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> from aeon.datasets import load_airline
-    >>> import aeon.transformations.series._scaled_logit as sl
-    >>> from aeon.forecasting.trend import PolynomialTrendForecaster
-    >>> from aeon.forecasting.compose import TransformedTargetForecaster
-    >>> y = load_airline()
-    >>> fcaster = TransformedTargetForecaster([
-    ...     ("scaled_logit", sl.ScaledLogitSeriesTransformer(0, 650)),
-    ...     ("poly", PolynomialTrendForecaster(degree=2))
-    ... ])
-    >>> fcaster.fit(y)
-    TransformedTargetForecaster(...)
-    >>> y_pred = fcaster.predict(fh = np.arange(32))
     """
 
     _tags = {
@@ -103,7 +66,7 @@ class ScaledLogitSeriesTransformer(BaseSeriesTransformer):
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
 
-        super().__init__()
+        super().__init__(axis=1)
 
     def _transform(self, X, y=None):
         """Transform X and return a transformed version.
@@ -174,7 +137,7 @@ class ScaledLogitSeriesTransformer(BaseSeriesTransformer):
         return X_inv_transformed
 
     @classmethod
-    def get_test_params(cls, parameter_set="default"):
+    def _get_test_params(cls, parameter_set="default"):
         """Return testing parameter settings for the estimator.
 
         Parameters
@@ -190,7 +153,6 @@ class ScaledLogitSeriesTransformer(BaseSeriesTransformer):
             Parameters to create testing instances of the class
             Each dict are parameters to construct an "interesting" test instance, i.e.,
             `MyClass(**params)` or `MyClass(**params[i])` creates a valid test instance.
-            `create_test_instance` uses the first (or only) dictionary in `params`
         """
         test_params = [
             {"lower_bound": None, "upper_bound": None},

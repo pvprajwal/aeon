@@ -1,6 +1,6 @@
-"""LITETime classifier."""
+"""LITETime and LITE classifiers."""
 
-__maintainer__ = []
+__maintainer__ = ["hadifawaz1999"]
 __all__ = ["LITETimeClassifier"]
 
 import gc
@@ -17,16 +17,24 @@ from aeon.networks import LITENetwork
 
 
 class LITETimeClassifier(BaseClassifier):
-    """LITETime ensemble classifier.
+    """LITETime or LITEMVTime ensemble classifier.
 
-    Ensemble of IndividualLITETimeClassifier objects, as described in [1]_.
+    Ensemble of IndividualLITETimeClassifier objects, as described in [1]_
+    and [2]_. For using LITEMV, simply set the `use_litemv`
+    bool parameter to True.
 
     Parameters
     ----------
     n_classifiers : int, default = 5,
-        the number of LITE models used for the
+        the number of LITE or LITEMV models used for the
         Ensemble in order to create
-        LITETime.
+        LITETime or LITEMVTime.
+    use_litemv : bool, default = False
+        The boolean value to control which version of the
+        network to use. If set to `False`, then LITE is used,
+        if set to `True` then LITEMV is used. LITEMV is the
+        same architecture as LITE but specifically designed
+        to better handle multivariate time series.
     n_filters : int or list of int32, default = 32
         The number of filters used in one lite layer, if not a list, the same
         number of filters is used in all lite layers.
@@ -60,6 +68,8 @@ class LITETimeClassifier(BaseClassifier):
         Whether or not to save the last model, last
         epoch trained, using the base class method
         save_last_model_to_file
+    save_init_model : bool, default = False
+        Whether to save the initialization of the  model.
     best_file_name : str, default = "best_model"
         The name of the file of the best model, if
         save_best_model is set to False, this parameter
@@ -68,6 +78,9 @@ class LITETimeClassifier(BaseClassifier):
         The name of the file of the last model, if
         save_last_model is set to False, this parameter
         is discarded
+    init_file_name : str, default = "init_model"
+        The name of the file of the init model, if save_init_model is set to False,
+        this parameter is discarded.
     random_state : int, RandomState instance or None, default=None
         If `int`, random_state is the seed used by the random number generator;
         If `RandomState` instance, random_state is the random number generator;
@@ -82,12 +95,17 @@ class LITETimeClassifier(BaseClassifier):
     metrics : keras metrics, default = None,
         will be set to accuracy as default if None
 
-    Notes
-    -----
+    References
+    ----------
     ..[1] Ismail-Fawaz et al. LITE: Light Inception with boosTing
     tEchniques for Time Series Classification, IEEE International
     Conference on Data Science and Advanced Analytics, 2023.
+    ..[2] Ismail-Fawaz, Ali, et al. "Look Into the LITE
+    in Deep Learning for Time Series Classification."
+    arXiv preprint arXiv:2409.02869 (2024).
 
+    Notes
+    -----
     Adapted from the implementation from Ismail-Fawaz et. al
     https://github.com/MSD-IRIMAS/LITE
 
@@ -105,14 +123,15 @@ class LITETimeClassifier(BaseClassifier):
     _tags = {
         "python_dependencies": "tensorflow",
         "capability:multivariate": True,
-        "non-deterministic": True,
-        "cant-pickle": True,
+        "non_deterministic": True,
+        "cant_pickle": True,
         "algorithm_type": "deeplearning",
     }
 
     def __init__(
         self,
         n_classifiers=5,
+        use_litemv=False,
         n_filters=32,
         kernel_size=40,
         strides=1,
@@ -120,8 +139,10 @@ class LITETimeClassifier(BaseClassifier):
         file_path="./",
         save_last_model=False,
         save_best_model=False,
+        save_init_model=False,
         best_file_name="best_model",
         last_file_name="last_model",
+        init_file_name="init_model",
         batch_size=64,
         use_mini_batch_size=False,
         n_epochs=1500,
@@ -133,6 +154,8 @@ class LITETimeClassifier(BaseClassifier):
         optimizer=None,
     ):
         self.n_classifiers = n_classifiers
+
+        self.use_litemv = use_litemv
 
         self.strides = strides
         self.activation = activation
@@ -146,8 +169,10 @@ class LITETimeClassifier(BaseClassifier):
 
         self.save_last_model = save_last_model
         self.save_best_model = save_best_model
+        self.save_init_model = save_init_model
         self.best_file_name = best_file_name
         self.last_file_name = last_file_name
+        self.init_file_name = init_file_name
 
         self.callbacks = callbacks
         self.random_state = random_state
@@ -157,7 +182,7 @@ class LITETimeClassifier(BaseClassifier):
         self.metrics = metrics
         self.optimizer = optimizer
 
-        self.classifers_ = []
+        self.classifiers_ = []
 
         super().__init__()
 
@@ -175,18 +200,21 @@ class LITETimeClassifier(BaseClassifier):
         -------
         self : object
         """
-        self.classifers_ = []
+        self.classifiers_ = []
         rng = check_random_state(self.random_state)
 
         for n in range(0, self.n_classifiers):
             cls = IndividualLITEClassifier(
+                use_litemv=self.use_litemv,
                 n_filters=self.n_filters,
                 kernel_size=self.kernel_size,
                 file_path=self.file_path,
                 save_best_model=self.save_best_model,
                 save_last_model=self.save_last_model,
+                save_init_model=self.save_init_model,
                 best_file_name=self.best_file_name + str(n),
                 last_file_name=self.last_file_name + str(n),
+                init_file_name=self.init_file_name + str(n),
                 batch_size=self.batch_size,
                 use_mini_batch_size=self.use_mini_batch_size,
                 n_epochs=self.n_epochs,
@@ -198,7 +226,7 @@ class LITETimeClassifier(BaseClassifier):
                 verbose=self.verbose,
             )
             cls.fit(X, y)
-            self.classifers_.append(cls)
+            self.classifiers_.append(cls)
             gc.collect()
 
         return self
@@ -239,7 +267,7 @@ class LITETimeClassifier(BaseClassifier):
         """
         probs = np.zeros((X.shape[0], self.n_classes_))
 
-        for cls in self.classifers_:
+        for cls in self.classifiers_:
             probs += cls._predict_proba(X)
 
         probs = probs / self.n_classifiers
@@ -247,7 +275,7 @@ class LITETimeClassifier(BaseClassifier):
         return probs
 
     @classmethod
-    def get_test_params(cls, parameter_set="default"):
+    def _get_test_params(cls, parameter_set="default"):
         """Return testing parameter settings for the estimator.
 
         Parameters
@@ -266,26 +294,43 @@ class LITETimeClassifier(BaseClassifier):
             Parameters to create testing instances of the class.
             Each dict are parameters to construct an "interesting" test instance, i.e.,
             `MyClass(**params)` or `MyClass(**params[i])` creates a valid test instance.
-            `create_test_instance` uses the first (or only) dictionary in `params`.
         """
         param1 = {
             "n_classifiers": 1,
-            "n_epochs": 10,
+            "n_epochs": 2,
             "batch_size": 4,
             "kernel_size": 4,
         }
+        param2 = {
+            "n_classifiers": 1,
+            "use_litemv": True,
+            "n_epochs": 2,
+            "batch_size": 4,
+            "kernel_size": 4,
+            "metrics": ["accuracy"],
+            "verbose": True,
+            "use_mini_batch_size": True,
+        }
 
-        return [param1]
+        return [param1, param2]
 
 
 class IndividualLITEClassifier(BaseDeepClassifier):
-    """Single LITETime classifier.
+    """Single LITE or LITEMV classifier.
 
-    One LITE deep model, as described in [1]_.
+    One LITE or LITEMV deep model, as described in [1]_
+    and [2]_. For using LITEMV, simply set the `use_litemv`
+    bool parameter to True.
 
     Parameters
     ----------
-        n_filters : int or list of int32, default = 32
+    use_litemv : bool, default = False
+        The boolean value to control which version of the
+        network to use. If set to `False`, then LITE is used,
+        if set to `True` then LITEMV is used. LITEMV is the
+        same architecture as LITE but specifically designed
+        to better handle multivariate time series.
+    n_filters : int or list of int32, default = 32
         The number of filters used in one lite layer, if not a list, the same
         number of filters is used in all lite layers.
     kernel_size : int or list of int, default = 40
@@ -318,6 +363,8 @@ class IndividualLITEClassifier(BaseDeepClassifier):
         Whether or not to save the last model, last
         epoch trained, using the base class method
         save_last_model_to_file
+    save_init_model : bool, default = False
+        Whether to save the initialization of the  model.
     best_file_name      : str, default = "best_model"
         The name of the file of the best model, if
         save_best_model is set to False, this parameter
@@ -326,6 +373,9 @@ class IndividualLITEClassifier(BaseDeepClassifier):
         The name of the file of the last model, if
         save_last_model is set to False, this parameter
         is discarded
+    init_file_name : str, default = "init_model"
+        The name of the file of the init model, if save_init_model is set to False,
+        this parameter is discarded.
     random_state : int, RandomState instance or None, default=None
         If `int`, random_state is the seed used by the random number generator;
         If `RandomState` instance, random_state is the random number generator;
@@ -340,12 +390,17 @@ class IndividualLITEClassifier(BaseDeepClassifier):
     metrics : keras metrics, default = None,
         will be set to accuracy as default if None
 
-    Notes
-    -----
+    References
+    ----------
     ..[1] Ismail-Fawaz et al. LITE: Light Inception with boosTing
     tEchniques for Time Series Classificaion, IEEE International
     Conference on Data Science and Advanced Analytics, 2023.
+    ..[2] Ismail-Fawaz, Ali, et al. "Look Into the LITE
+    in Deep Learning for Time Series Classification."
+    arXiv preprint arXiv:2409.02869 (2024).
 
+    Notes
+    -----
     Adapted from the implementation from Ismail-Fawaz et. al
     https://github.com/MSD-IRIMAS/LITE
 
@@ -353,8 +408,8 @@ class IndividualLITEClassifier(BaseDeepClassifier):
     --------
     >>> from aeon.classification.deep_learning import IndividualLITEClassifier
     >>> from aeon.datasets import load_unit_test
-    >>> X_train, y_train = load_unit_test(split="train", return_X_y=True)
-    >>> X_test, y_test = load_unit_test(split="test", return_X_y=True)
+    >>> X_train, y_train = load_unit_test(split="train")
+    >>> X_test, y_test = load_unit_test(split="test")
     >>> lite = IndividualLITEClassifier(n_epochs=20,batch_size=4)  # doctest: +SKIP
     >>> lite.fit(X_train, y_train)  # doctest: +SKIP
     IndividualLITEClassifier(...)
@@ -362,6 +417,7 @@ class IndividualLITEClassifier(BaseDeepClassifier):
 
     def __init__(
         self,
+        use_litemv=False,
         n_filters=32,
         kernel_size=40,
         strides=1,
@@ -369,8 +425,10 @@ class IndividualLITEClassifier(BaseDeepClassifier):
         file_path="./",
         save_best_model=False,
         save_last_model=False,
+        save_init_model=False,
         best_file_name="best_model",
         last_file_name="last_model",
+        init_file_name="init_model",
         batch_size=64,
         use_mini_batch_size=False,
         n_epochs=1500,
@@ -381,7 +439,7 @@ class IndividualLITEClassifier(BaseDeepClassifier):
         metrics=None,
         optimizer=None,
     ):
-        # predefined
+        self.use_litemv = use_litemv
         self.n_filters = n_filters
         self.strides = strides
         self.activation = activation
@@ -393,7 +451,9 @@ class IndividualLITEClassifier(BaseDeepClassifier):
 
         self.save_best_model = save_best_model
         self.save_last_model = save_last_model
+        self.save_init_model = save_init_model
         self.best_file_name = best_file_name
+        self.init_file_name = init_file_name
 
         self.callbacks = callbacks
         self.verbose = verbose
@@ -409,6 +469,7 @@ class IndividualLITEClassifier(BaseDeepClassifier):
         )
 
         self._network = LITENetwork(
+            use_litemv=self.use_litemv,
             n_filters=self.n_filters,
             kernel_size=self.kernel_size,
             strides=self.strides,
@@ -495,6 +556,9 @@ class IndividualLITEClassifier(BaseDeepClassifier):
             mini_batch_size = self.batch_size
         self.training_model_ = self.build_model(self.input_shape, self.n_classes_)
 
+        if self.save_init_model:
+            self.training_model_.save(self.file_path + self.init_file_name + ".keras")
+
         if self.verbose:
             self.training_model_.summary()
 
@@ -502,8 +566,8 @@ class IndividualLITEClassifier(BaseDeepClassifier):
             self.best_file_name if self.save_best_model else str(time.time_ns())
         )
 
-        self.callbacks_ = (
-            [
+        if self.callbacks is None:
+            self.callbacks_ = [
                 tf.keras.callbacks.ReduceLROnPlateau(
                     monitor="loss", factor=0.5, patience=50, min_lr=0.0001
                 ),
@@ -513,9 +577,12 @@ class IndividualLITEClassifier(BaseDeepClassifier):
                     save_best_only=True,
                 ),
             ]
-            if self.callbacks is None
-            else self.callbacks
-        )
+        else:
+            self.callbacks_ = self._get_model_checkpoint_callback(
+                callbacks=self.callbacks,
+                file_path=self.file_path,
+                file_name=self.file_name_,
+            )
 
         self.history = self.training_model_.fit(
             X,
@@ -542,7 +609,7 @@ class IndividualLITEClassifier(BaseDeepClassifier):
         return self
 
     @classmethod
-    def get_test_params(cls, parameter_set="default"):
+    def _get_test_params(cls, parameter_set="default"):
         """Return testing parameter settings for the estimator.
 
         Parameters
@@ -561,12 +628,20 @@ class IndividualLITEClassifier(BaseDeepClassifier):
             Parameters to create testing instances of the class.
             Each dict are parameters to construct an "interesting" test instance, i.e.,
             `MyClass(**params)` or `MyClass(**params[i])` creates a valid test instance.
-            `create_test_instance` uses the first (or only) dictionary in `params`.
         """
         param1 = {
-            "n_epochs": 10,
+            "n_epochs": 2,
             "batch_size": 4,
             "kernel_size": 4,
         }
+        param2 = {
+            "use_litemv": True,
+            "n_epochs": 2,
+            "batch_size": 4,
+            "kernel_size": 4,
+            "metrics": ["accuracy"],
+            "verbose": True,
+            "use_mini_batch_size": True,
+        }
 
-        return [param1]
+        return [param1, param2]
