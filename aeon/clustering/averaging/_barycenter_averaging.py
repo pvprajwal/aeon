@@ -25,7 +25,7 @@ def elastic_barycenter_average(
     random_state: Optional[int] = None,
     ba_subset_size: float = 1.0,
     return_distances: bool = False,
-    # count_number_distance_calls: bool = False,
+    count_number_distance_calls: bool = False,
     **kwargs,
 ) -> np.ndarray:
     """Compute the barycenter average of time series using a elastic distance.
@@ -109,11 +109,11 @@ def elastic_barycenter_average(
     """
     if X.shape[0] == 1:
         if return_distances:
-            # if count_number_distance_calls:
-            #     return X[0], np.zeros(X.shape[0]), 0
+            if count_number_distance_calls:
+                return X[0], np.zeros(X.shape[0]), 0
             return X[0], np.zeros(X.shape[0])
-        # if count_number_distance_calls:
-        #     return X[0], 0
+        if count_number_distance_calls:
+            return X[0], 0
         return X[0]
     if method == "petitjean":
         return petitjean_barycenter_average(
@@ -126,7 +126,7 @@ def elastic_barycenter_average(
             verbose=verbose,
             random_state=random_state,
             return_distances=return_distances,
-            # count_number_distance_calls=count_number_distance_calls,
+            count_number_distance_calls=count_number_distance_calls,
             **kwargs,
         )
     elif method == "subgradient":
@@ -142,7 +142,7 @@ def elastic_barycenter_average(
             verbose=verbose,
             random_state=random_state,
             return_distances=return_distances,
-            # count_number_distance_calls=count_number_distance_calls,
+            count_number_distance_calls=count_number_distance_calls,
             **kwargs,
         )
     elif method == "random_subset_ssg":
@@ -159,7 +159,7 @@ def elastic_barycenter_average(
             verbose=verbose,
             random_state=random_state,
             return_distances=return_distances,
-            # count_number_distance_calls=count_number_distance_calls,
+            count_number_distance_calls=count_number_distance_calls,
             **kwargs,
         )
     else:

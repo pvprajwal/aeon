@@ -25,7 +25,7 @@ def random_subset_ssg_barycenter_average(
     random_state: Optional[int] = None,
     ba_subset_size: float = 1.0,
     return_distances: bool = False,
-    # count_number_distance_calls: bool = False,
+    count_number_distance_calls: bool = False,
     **kwargs,
 ) -> np.ndarray:
     """Compute the random subset ssg barycenter average of time series.
@@ -176,12 +176,12 @@ def random_subset_ssg_barycenter_average(
         )  # noqa: T001, T201
 
     if return_distances:
-        # if count_number_distance_calls:
-        #     return barycenter, distances_to_centre, (i + 1) * num_ts_to_use
+        if count_number_distance_calls:
+            return barycenter, distances_to_centre, (i + 1) * num_ts_to_use
         return barycenter, distances_to_centre
 
-    # if count_number_distance_calls:
-    #     return barycenter, (i + 1) * num_ts_to_use
+    if count_number_distance_calls:
+        return barycenter, (i + 1) * num_ts_to_use
     return barycenter
 
 

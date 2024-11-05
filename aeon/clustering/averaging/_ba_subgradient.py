@@ -25,7 +25,7 @@ def subgradient_barycenter_average(
     verbose: bool = False,
     random_state: Optional[int] = None,
     return_distances: bool = False,
-    # count_number_distance_calls: bool = False,
+    count_number_distance_calls: bool = False,
     **kwargs,
 ) -> np.ndarray:
     """Compute the stochastic subgradient barycenter average of time series.
@@ -170,14 +170,14 @@ def subgradient_barycenter_average(
         )  # noqa: T001, T201
 
     if return_distances:
-        # if count_number_distance_calls:
-        #     return barycenter, pairwise_distance(X, barycenter, metric=distance, **kwargs).min(axis=1), (i + 1) * len(_X)
+        if count_number_distance_calls:
+            return barycenter, pairwise_distance(X, barycenter, metric=distance, **kwargs).min(axis=1), (i + 1) * len(_X)
         return barycenter, pairwise_distance(
             X, barycenter, metric=distance, **kwargs
         ).min(axis=1)
 
-    # if count_number_distance_calls:
-    #     return barycenter, (i + 1) * len(_X)
+    if count_number_distance_calls:
+        return barycenter, (i + 1) * len(_X)
     return barycenter
 
 
