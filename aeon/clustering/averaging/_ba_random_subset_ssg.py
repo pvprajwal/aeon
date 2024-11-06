@@ -26,6 +26,8 @@ def random_subset_ssg_barycenter_average(
     ba_subset_size: float = 1.0,
     return_distances: bool = False,
     count_number_distance_calls: bool = False,
+    previous_cost: Optional[float] = None,
+    previous_distance_to_centre: Optional[np.ndarray] = None,
     **kwargs,
 ) -> np.ndarray:
     """Compute the random subset ssg barycenter average of time series.
@@ -117,8 +119,19 @@ def random_subset_ssg_barycenter_average(
     random_state = check_random_state(random_state)
     X_size = _X.shape[0]
 
+    if previous_cost is not None:
+        cost_prev = previous_cost
+    else:
+        cost_prev = np.inf
+
+    if previous_distance_to_centre is not None:
+        prev_distances_to_centre = previous_distance_to_centre
+    else:
+        prev_distances_to_centre = np.zeros(X_size)
+
+    prev_barycenter = np.copy(barycenter)
+
     cost = np.inf
-    cost_prev = np.inf
     distances_to_centre = np.zeros(X_size)
     if distance == "wdtw" or distance == "wddtw":
         if "g" not in kwargs:
@@ -126,15 +139,13 @@ def random_subset_ssg_barycenter_average(
 
     current_step_size = initial_step_size
     num_ts_to_use = min(X_size, max(10, int(ba_subset_size * X_size)))
-    prev_barycenter = np.copy(barycenter)
-    prev_distances_to_centre = np.zeros(X_size)
     # Loop up to 30 times
     for i in range(max_iters):
         # Randomly order the dataset
         shuffled_indices = random_state.permutation(X_size)[:num_ts_to_use]
         # It then warps all onto centre to get the Fretchet distance
         # Updating the barycenter every iteration based on the warping
-        barycenter, old_cost, current_step_size = _ba_one_iter_random_subset_ssg(
+        barycenter, current_step_size = _ba_one_iter_random_subset_ssg(
             barycenter,
             _X,
             shuffled_indices,
@@ -148,7 +159,7 @@ def random_subset_ssg_barycenter_average(
 
         pw_dist = pairwise_distance(_X, barycenter, metric=distance, **kwargs)
         cost = np.sum(pw_dist)
-        distances_to_centre = pw_dist.min(axis=1)
+        distances_to_centre = pw_dist.flatten()
 
         # Cost is the sum of distance to the centre
         if abs(cost_prev - cost) < tol:
@@ -211,7 +222,6 @@ def _ba_one_iter_random_subset_ssg(
 ):
 
     X_size, X_dims, X_timepoints = X.shape
-    cost = 0.0
     # Only update current_step_size on the first iteration
     step_size_reduction = 0.0
     if iteration == 0:
@@ -247,8 +257,7 @@ def _ba_one_iter_random_subset_ssg(
         barycenter_copy -= (2.0 * current_step_size) * new_ba
 
         current_step_size -= step_size_reduction
-        cost = curr_cost
-    return barycenter_copy, cost, current_step_size
+    return barycenter_copy, current_step_size
 
 
 if __name__ == "__main__":

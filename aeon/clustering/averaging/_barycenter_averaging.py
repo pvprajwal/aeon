@@ -26,6 +26,8 @@ def elastic_barycenter_average(
     ba_subset_size: float = 1.0,
     return_distances: bool = False,
     count_number_distance_calls: bool = False,
+    previous_cost: Optional[float] = None,
+    previous_distance_to_centre: Optional[np.ndarray] = None,
     **kwargs,
 ) -> np.ndarray:
     """Compute the barycenter average of time series using a elastic distance.
@@ -160,6 +162,8 @@ def elastic_barycenter_average(
             random_state=random_state,
             return_distances=return_distances,
             count_number_distance_calls=count_number_distance_calls,
+            previous_cost=previous_cost,
+            previous_distance_to_centre=previous_distance_to_centre,
             **kwargs,
         )
     else:

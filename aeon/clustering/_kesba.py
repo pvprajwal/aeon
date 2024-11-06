@@ -42,6 +42,7 @@ class KESBA(BaseClusterer):
         use_lloyds: bool = False,
         count_distance_calls: bool = False,
         use_mean_as_init: bool = True,
+        use_previous_cost: bool = False,
     ):
         self.distance = distance
         self.max_iter = max_iter
@@ -58,6 +59,7 @@ class KESBA(BaseClusterer):
         self.use_lloyds = use_lloyds
         self.count_distance_calls = count_distance_calls
         self.use_mean_as_init = use_mean_as_init
+        self.use_previous_cost = use_previous_cost
 
         self.cluster_centers_ = None
         self.labels_ = None
@@ -301,7 +303,14 @@ class KESBA(BaseClusterer):
         distances_to_centres,
     ):
 
+
         for j in range(self.n_clusters):
+            previous_cost = None
+            previous_distance_to_centre = None
+            if self.use_previous_cost:
+                previous_distance_to_centre = distances_to_centres[labels == j]
+                previous_cost = np.sum(previous_distance_to_centre)
+
             if self.use_mean_as_init:
                 curr_centre, dist_to_centre, num_distance_calls = elastic_barycenter_average(
                     X[labels == j],
@@ -316,6 +325,8 @@ class KESBA(BaseClusterer):
                     count_number_distance_calls=True,
                     ba_subset_size=self.ba_subset_size,
                     verbose=self.verbose,
+                    previous_cost=previous_cost,
+                    previous_distance_to_centre=previous_distance_to_centre,
                     **self._distance_params,
                 )
             else:
@@ -332,6 +343,8 @@ class KESBA(BaseClusterer):
                     count_number_distance_calls=True,
                     verbose=self.verbose,
                     ba_subset_size=self.ba_subset_size,
+                    previous_cost=previous_cost,
+                    previous_distance_to_centre=previous_distance_to_centre,
                     **self._distance_params,
                 )
             self.update_distance_calls += num_distance_calls

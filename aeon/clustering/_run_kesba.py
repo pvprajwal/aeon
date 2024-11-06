@@ -20,6 +20,7 @@ verbose = True
 init = "first"
 random_state = 1
 use_mean_init = False
+use_previous_cost = False
 
 
 # def run_eklan_kesba(X_train, n_clusters):
@@ -62,6 +63,7 @@ def run_lloyds_kesba(X_train, n_clusters):
         verbose=verbose,
         use_lloyds=True,
         use_mean_as_init=use_mean_init,
+        use_previous_cost=use_previous_cost,
     )
 
     start = time.time()
@@ -87,6 +89,7 @@ def run_tony_kesba(X_train, n_clusters):
         verbose=verbose,
         use_lloyds=False,
         use_mean_as_init=use_mean_init,
+        use_previous_cost=use_previous_cost,
     )
 
     start = time.time()
