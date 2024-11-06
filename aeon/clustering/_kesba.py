@@ -103,7 +103,12 @@ class KESBA(BaseClusterer):
                     labels,
                 )
             )
-        self.total_distance_calls = self.init_distance_calls + self.empty_cluster_distance_calls + self.update_distance_calls + self.assignment_distance_calls
+        self.total_distance_calls = (
+            self.init_distance_calls
+            + self.empty_cluster_distance_calls
+            + self.update_distance_calls
+            + self.assignment_distance_calls
+        )
         if self.verbose:
             print("+++++++++ Final output +++++++++")
             print("Final inertia: ", self.inertia_)
@@ -303,7 +308,6 @@ class KESBA(BaseClusterer):
         distances_to_centres,
     ):
 
-
         for j in range(self.n_clusters):
             previous_cost = None
             previous_distance_to_centre = None
@@ -312,40 +316,44 @@ class KESBA(BaseClusterer):
                 previous_cost = np.sum(previous_distance_to_centre)
 
             if self.use_mean_as_init:
-                curr_centre, dist_to_centre, num_distance_calls = elastic_barycenter_average(
-                    X[labels == j],
-                    max_iters=50,
-                    method=self.average_method,
-                    # init_barycenter=cluster_centres[j],
-                    distance=self.distance,
-                    initial_step_size=self.initial_step_size,
-                    final_step_size=self.final_step_size,
-                    random_state=self._random_state,
-                    return_distances=True,
-                    count_number_distance_calls=True,
-                    ba_subset_size=self.ba_subset_size,
-                    verbose=self.verbose,
-                    previous_cost=previous_cost,
-                    previous_distance_to_centre=previous_distance_to_centre,
-                    **self._distance_params,
+                curr_centre, dist_to_centre, num_distance_calls = (
+                    elastic_barycenter_average(
+                        X[labels == j],
+                        max_iters=50,
+                        method=self.average_method,
+                        # init_barycenter=cluster_centres[j],
+                        distance=self.distance,
+                        initial_step_size=self.initial_step_size,
+                        final_step_size=self.final_step_size,
+                        random_state=self._random_state,
+                        return_distances=True,
+                        count_number_distance_calls=True,
+                        ba_subset_size=self.ba_subset_size,
+                        verbose=self.verbose,
+                        previous_cost=previous_cost,
+                        previous_distance_to_centre=previous_distance_to_centre,
+                        **self._distance_params,
+                    )
                 )
             else:
-                curr_centre, dist_to_centre, num_distance_calls = elastic_barycenter_average(
-                    X[labels == j],
-                    max_iters=50,
-                    method=self.average_method,
-                    init_barycenter=cluster_centres[j],
-                    distance=self.distance,
-                    initial_step_size=self.initial_step_size,
-                    final_step_size=self.final_step_size,
-                    random_state=self._random_state,
-                    return_distances=True,
-                    count_number_distance_calls=True,
-                    verbose=self.verbose,
-                    ba_subset_size=self.ba_subset_size,
-                    previous_cost=previous_cost,
-                    previous_distance_to_centre=previous_distance_to_centre,
-                    **self._distance_params,
+                curr_centre, dist_to_centre, num_distance_calls = (
+                    elastic_barycenter_average(
+                        X[labels == j],
+                        max_iters=50,
+                        method=self.average_method,
+                        init_barycenter=cluster_centres[j],
+                        distance=self.distance,
+                        initial_step_size=self.initial_step_size,
+                        final_step_size=self.final_step_size,
+                        random_state=self._random_state,
+                        return_distances=True,
+                        count_number_distance_calls=True,
+                        verbose=self.verbose,
+                        ba_subset_size=self.ba_subset_size,
+                        previous_cost=previous_cost,
+                        previous_distance_to_centre=previous_distance_to_centre,
+                        **self._distance_params,
+                    )
                 )
             self.update_distance_calls += num_distance_calls
             cluster_centres[j] = curr_centre
