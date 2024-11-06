@@ -1,5 +1,9 @@
 """Base class for estimators that fit collections of time series."""
 
+__maintainer__ = ["TonyBagnall", "MatthewMiddlehurst"]
+__all__ = ["BaseCollectionEstimator"]
+
+
 from aeon.base._base import BaseAeonEstimator
 from aeon.utils.conversion import (
     convert_collection,
@@ -22,11 +26,12 @@ from aeon.utils.validation.collection import (
 class BaseCollectionEstimator(BaseAeonEstimator):
     """Base class for estimators that use collections of time series for method fit.
 
-    Provides functions that are common to BaseClassifier, BaseRegressor,
-    BaseClusterer and BaseCollectionTransformer for the checking and
-    conversion of input to fit, predict and predict_proba, where relevant.
+    Provides functions that are common to all learning tasks which use collections such
+    as ``BaseClassifier``, ``BaseRegressor``, ``BaseClusterer``,
+    ``BaseSimilaritySearch``, and ``BaseCollectionTransformer``.
+    Handles conversion of input to fit, predict and predict_proba, where relevant.
 
-    It also stores the common default tags used by all the subclasses and meta data
+    It also stores the common default tags used by all the subclasses and metadata
     describing the characteristics of time series passed to ``fit``.
     """
 

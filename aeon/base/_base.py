@@ -1,6 +1,6 @@
 """Base class template for aeon estimators."""
 
-__maintainer__ = ["MatthewMiddlehurst", "TonyBagnall"]
+__maintainer__ = ["TonyBagnall", "MatthewMiddlehurst"]
 __all__ = ["BaseAeonEstimator"]
 
 import inspect

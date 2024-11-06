@@ -1,5 +1,8 @@
 """Base class for the RIST pipeline."""
 
+__maintainer__ = ["MatthewMiddlehurst"]
+__all__ = ["BaseRIST"]
+
 from abc import ABC, abstractmethod
 
 import numpy as np

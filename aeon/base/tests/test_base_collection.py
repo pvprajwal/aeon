@@ -1,7 +1,5 @@
 """Tests for BaseCollectionEstimator."""
 
-__maintainer__ = ["TonyBagnall", "MatthewMiddlehurst"]
-
 import numpy as np
 import pytest
 
