@@ -90,24 +90,30 @@ class KESBA(BaseClusterer):
         if self.verbose:
             print("Starting inertia: ", np.sum(distances_to_centres**2))
 
-        if self.use_lloyds:
-            self.labels_, self.cluster_centers_, self.inertia_, self.n_iter_ = (
-                self._kesba_lloyds(
-                    X,
-                    cluster_centres,
-                    distances_to_centres,
-                    labels,
-                )
-            )
+        if self.max_iter == 0:
+            self.labels_ = labels
+            self.cluster_centers_ = cluster_centres
+            self.inertia_ = np.sum(distances_to_centres**2)
+            self.n_iter_ = 0
         else:
-            self.labels_, self.cluster_centers_, self.inertia_, self.n_iter_ = (
-                self._kesba(
-                    X,
-                    cluster_centres,
-                    distances_to_centres,
-                    labels,
+            if self.use_lloyds:
+                self.labels_, self.cluster_centers_, self.inertia_, self.n_iter_ = (
+                    self._kesba_lloyds(
+                        X,
+                        cluster_centres,
+                        distances_to_centres,
+                        labels,
+                    )
                 )
-            )
+            else:
+                self.labels_, self.cluster_centers_, self.inertia_, self.n_iter_ = (
+                    self._kesba(
+                        X,
+                        cluster_centres,
+                        distances_to_centres,
+                        labels,
+                    )
+                )
         self.total_distance_calls = (
             self.init_distance_calls
             + self.empty_cluster_distance_calls

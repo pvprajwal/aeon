@@ -11,6 +11,7 @@ from aeon.clustering.averaging._ba_utils import (
 from aeon.distances import distance as distance_callable
 from aeon.distances import pairwise_distance
 
+# change stopping condition so if it increase for 10% of the max_iters in a row stop rather than just once
 
 def lr_random_subset_ssg_barycenter_average(
     X: np.ndarray,
