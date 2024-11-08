@@ -27,7 +27,7 @@ def lr_random_subset_ssg_barycenter_average(
     previous_cost: Optional[float] = None,
     previous_distance_to_centre: Optional[np.ndarray] = None,
     use_all_first_subset_ba_iteration: bool = False,
-    lr_func: str = "simple",
+    lr_func: str = "iterative",
     initial_step_size: float = 0.05,
     decay_rate: float = 0.1,
     min_step_size: float = 0.005,
