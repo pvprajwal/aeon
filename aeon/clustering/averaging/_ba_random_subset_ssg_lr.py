@@ -89,11 +89,11 @@ def lr_random_subset_ssg_barycenter_average(
             current_step_size = initial_step_size * (1 - (i / max_iters) ** 2)
         elif lr_func == "exponential":
             current_step_size = initial_step_size * np.exp(-decay_rate * i)
-        elif lr_func == "cosine_annealing":
+        elif lr_func == "cosine-annealing":
             current_step_size = min_step_size + 0.5 * (
                 initial_step_size - min_step_size
             ) * (1 + np.cos(np.pi * i / max_iters))
-        elif lr_func == "inverse_time":
+        elif lr_func == "inverse-time":
             current_step_size = initial_step_size / (1 + decay_rate * i)
         else:
             raise ValueError("Invalid learning rate function")

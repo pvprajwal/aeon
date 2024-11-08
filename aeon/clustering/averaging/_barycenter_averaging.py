@@ -34,7 +34,6 @@ def elastic_barycenter_average(
     use_all_first_subset_ba_iteration: bool = False,
     lr_func: str = "simple",
     decay_rate: float = 0.1,
-    min_step_size: float = 0.005,
     **kwargs,
 ) -> np.ndarray:
     """Compute the barycenter average of time series using a elastic distance.
@@ -193,7 +192,7 @@ def elastic_barycenter_average(
             lr_func=lr_func,
             initial_step_size=initial_step_size,
             decay_rate=decay_rate,
-            min_step_size=min_step_size,
+            min_step_size=final_step_size,
             **kwargs,
         )
     else:

@@ -46,7 +46,6 @@ class KESBA(BaseClusterer):
         use_all_first_subset_ba_iteration: bool = False,
         ba_lr_func: str = "iterative",
         decay_rate: float = 0.1,
-        min_step_size: float = 0.005,
     ):
         self.distance = distance
         self.max_iter = max_iter
@@ -66,7 +65,6 @@ class KESBA(BaseClusterer):
         self.use_all_first_subset_ba_iteration = use_all_first_subset_ba_iteration
         self.ba_lr_func = ba_lr_func
         self.decay_rate = decay_rate
-        self.min_step_size = min_step_size
 
         self.cluster_centers_ = None
         self.labels_ = None
@@ -342,7 +340,6 @@ class KESBA(BaseClusterer):
                         use_all_first_subset_ba_iteration=self.use_all_first_subset_ba_iteration,
                         lr_func=self.ba_lr_func,
                         decay_rate=self.decay_rate,
-                        min_step_size=self.min_step_size,
                         **self._distance_params,
                     )
                 )
@@ -366,7 +363,6 @@ class KESBA(BaseClusterer):
                         use_all_first_subset_ba_iteration=self.use_all_first_subset_ba_iteration,
                         lr_func=self.ba_lr_func,
                         decay_rate=self.decay_rate,
-                        min_step_size=self.min_step_size,
                         **self._distance_params,
                     )
                 )
