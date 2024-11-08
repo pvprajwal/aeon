@@ -8,6 +8,9 @@ from aeon.clustering.averaging._ba_petitjean import petitjean_barycenter_average
 from aeon.clustering.averaging._ba_random_subset_ssg import (
     random_subset_ssg_barycenter_average,
 )
+from aeon.clustering.averaging._ba_random_subset_ssg_lr import (
+    lr_random_subset_ssg_barycenter_average,
+)
 from aeon.clustering.averaging._ba_subgradient import subgradient_barycenter_average
 
 
@@ -28,6 +31,10 @@ def elastic_barycenter_average(
     count_number_distance_calls: bool = False,
     previous_cost: Optional[float] = None,
     previous_distance_to_centre: Optional[np.ndarray] = None,
+    use_all_first_subset_ba_iteration: bool = False,
+    lr_func: str = "simple",
+    decay_rate: float = 0.1,
+    min_step_size: float = 0.005,
     **kwargs,
 ) -> np.ndarray:
     """Compute the barycenter average of time series using a elastic distance.
@@ -164,6 +171,29 @@ def elastic_barycenter_average(
             count_number_distance_calls=count_number_distance_calls,
             previous_cost=previous_cost,
             previous_distance_to_centre=previous_distance_to_centre,
+            use_all_first_subset_ba_iteration=use_all_first_subset_ba_iteration,
+            **kwargs,
+        )
+    elif method == "lr_random_subset_ssg":
+        return lr_random_subset_ssg_barycenter_average(
+            X,
+            distance=distance,
+            max_iters=max_iters,
+            tol=tol,
+            init_barycenter=init_barycenter,
+            precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
+            verbose=verbose,
+            random_state=random_state,
+            ba_subset_size=ba_subset_size,
+            return_distances=return_distances,
+            count_number_distance_calls=count_number_distance_calls,
+            previous_cost=previous_cost,
+            previous_distance_to_centre=previous_distance_to_centre,
+            use_all_first_subset_ba_iteration=use_all_first_subset_ba_iteration,
+            lr_func=lr_func,
+            initial_step_size=initial_step_size,
+            decay_rate=decay_rate,
+            min_step_size=min_step_size,
             **kwargs,
         )
     else:

@@ -14,7 +14,7 @@ window = 0.2
 ba_subset_size = 0.2
 distance = "msm"
 # averaging_method = "petitjean"
-averaging_method = "random_subset_ssg"
+averaging_method = "lr_random_subset_ssg"
 # averaging_method = "subgradient"
 verbose = True
 init = "first"
@@ -22,6 +22,9 @@ random_state = 1
 use_mean_init = False
 use_previous_cost = False
 use_all_first_subset_ba_iteration = False
+ba_lr_func = "cosine_annealing"
+decay_rate = 0.4
+min_step_size = 0.0044
 
 
 # def run_eklan_kesba(X_train, n_clusters):
@@ -66,6 +69,9 @@ def run_lloyds_kesba(X_train, n_clusters):
         use_mean_as_init=use_mean_init,
         use_previous_cost=use_previous_cost,
         use_all_first_subset_ba_iteration=use_all_first_subset_ba_iteration,
+        ba_lr_func=ba_lr_func,
+        decay_rate=decay_rate,
+        min_step_size=min_step_size,
     )
 
     start = time.time()
@@ -93,6 +99,9 @@ def run_tony_kesba(X_train, n_clusters):
         use_mean_as_init=use_mean_init,
         use_previous_cost=use_previous_cost,
         use_all_first_subset_ba_iteration=use_all_first_subset_ba_iteration,
+        ba_lr_func=ba_lr_func,
+        decay_rate=decay_rate,
+        min_step_size=min_step_size,
     )
 
     start = time.time()

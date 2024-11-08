@@ -12,14 +12,12 @@ from aeon.distances import distance as distance_callable
 from aeon.distances import pairwise_distance
 
 
-def random_subset_ssg_barycenter_average(
+def lr_random_subset_ssg_barycenter_average(
     X: np.ndarray,
     distance: str = "dtw",
     max_iters: int = 30,
     tol=1e-5,
     init_barycenter: Union[np.ndarray, str] = "mean",
-    initial_step_size: float = 0.05,
-    final_step_size: float = 0.005,
     precomputed_medoids_pairwise_distance: Optional[np.ndarray] = None,
     verbose: bool = False,
     random_state: Optional[int] = None,
@@ -29,74 +27,12 @@ def random_subset_ssg_barycenter_average(
     previous_cost: Optional[float] = None,
     previous_distance_to_centre: Optional[np.ndarray] = None,
     use_all_first_subset_ba_iteration: bool = False,
+    lr_func: str = "simple",
+    initial_step_size: float = 0.05,
+    decay_rate: float = 0.1,
+    min_step_size: float = 0.005,
     **kwargs,
 ) -> np.ndarray:
-    """Compute the random subset ssg barycenter average of time series.
-
-    Stochastic subgradient is much faster than petitjean, however, it is not guaranteed
-    to find the optimal solution.
-    This implements a stochastic subgradient DBA algorithm. This changes how
-    the average is computed. Unlike traditional methods, it calculates a subgradient
-    based on each individual time series within the dataset. The barycenter is then
-    iteratively updated using these subgradient. See [2]_ for more details.
-
-    Parameters
-    ----------
-    X: np.ndarray, of shape (n_cases, n_channels, n_timepoints) or
-            (n_cases, n_timepoints)
-        A collection of time series instances to take the average from.
-    distance: str, default='dtw'
-        String defining the distance to use for averaging. Distance to
-        compute similarity between time series. A list of valid strings for metrics
-        can be found in the documentation form
-        :func:`aeon.distances.get_distance_function`.
-    max_iters: int, default=30
-        Maximum number iterations for dba to update over.
-    tol : float (default: 1e-5)
-        Tolerance to use for early stopping: if the decrease in cost is lower
-        than this value, the Expectation-Maximization procedure stops.
-    init_barycenter: np.ndarray or, default=None
-        The initial barycenter to use for the minimisation. If a np.ndarray is provided
-        it must be of shape ``(n_channels, n_timepoints)``. If a str is provided it must
-        be one of the following: ['mean', 'medoids', 'random'].
-    initial_step_size : float (default: 0.05)
-        Initial step size for the subgradient descent algorithm.
-        Default value is suggested by [2]_.
-    final_step_size : float (default: 0.005)
-        Final step size for the subgradient descent algorithm.
-        Default value is suggested by [2]_.
-    weights: Optional[np.ndarray] of shape (n_cases,), default=None
-        The weights associated to each time series instance, if None a weight
-        of 1 will be associated to each instance.
-    precomputed_medoids_pairwise_distance: np.ndarray (of shape (len(X), len(X)),
-                default=None
-        Precomputed medoids pairwise.
-    verbose: bool, default=False
-        Boolean that controls the verbosity.
-    random_state: int or None, default=None
-        Random state to use for the barycenter averaging.
-    ba_subset_size: float, default=1.0
-        The proportion of the dataset to use for the barycenter averaging. If set to 1.0
-        the full dataset will be used.
-    **kwargs
-        Keyword arguments to pass to the distance metric.
-
-    Returns
-    -------
-    C: np.ndarray of shape (n_channels, n_timepoints)
-        Time series that is the average of the collection of instances provided.
-    p: np.ndarray of shape (n_cases,) of distances between X and C
-
-
-    References
-    ----------
-    .. [1] F. Petitjean, A. Ketterlin & P. Gancarski. A global averaging method
-       for dynamic time warping, with applications to clustering. Pattern
-       Recognition, Elsevier, 2011, Vol. 44, Num. 3, pp. 678-693
-    .. [2] D. Schultz and B. Jain. Nonsmooth Analysis and Subgradient Methods
-       for Averaging in Dynamic Time Warping Spaces.
-       Pattern Recognition, 74, 340-358.
-    """
     if len(X) <= 1:
         return X
 
@@ -138,25 +74,36 @@ def random_subset_ssg_barycenter_average(
         if "g" not in kwargs:
             kwargs["g"] = 0.05
 
-    current_step_size = initial_step_size
     num_ts_to_use = min(X_size, max(10, int(ba_subset_size * X_size)))
     # Loop up to 30 times
     for i in range(max_iters):
-        # Randomly order the dataset
         shuffled_indices = random_state.permutation(X_size)
         if i > 0 or not use_all_first_subset_ba_iteration:
             shuffled_indices = shuffled_indices[:num_ts_to_use]
-        # It then warps all onto centre to get the Fretchet distance
-        # Updating the barycenter every iteration based on the warping
-        barycenter, current_step_size = _ba_one_iter_random_subset_ssg(
+
+        if lr_func == "iterative":
+            current_step_size = initial_step_size / (i + 1)
+        elif lr_func == "linear":
+            current_step_size = initial_step_size * (1 - i / max_iters)
+        elif lr_func == "quadratic":
+            current_step_size = initial_step_size * (1 - (i / max_iters) ** 2)
+        elif lr_func == "exponential":
+            current_step_size = initial_step_size * np.exp(-decay_rate * i)
+        elif lr_func == "cosine_annealing":
+            current_step_size = min_step_size + 0.5 * (
+                initial_step_size - min_step_size
+            ) * (1 + np.cos(np.pi * i / max_iters))
+        elif lr_func == "inverse_time":
+            current_step_size = initial_step_size / (1 + decay_rate * i)
+        else:
+            raise ValueError("Invalid learning rate function")
+
+        barycenter = _ba_one_iter_random_subset_ssg(
             barycenter,
             _X,
             shuffled_indices,
             distance,
-            initial_step_size,
-            final_step_size,
             current_step_size,
-            i,
             **kwargs,
         )
 
@@ -210,10 +157,7 @@ def _ba_one_iter_random_subset_ssg(
     X: np.ndarray,
     shuffled_indices: np.ndarray,
     distance: str = "dtw",
-    initial_step_size: float = 0.05,
-    final_step_size: float = 0.005,
     current_step_size: float = 0.05,
-    iteration: int = 0,
     window: Union[float, None] = None,
     g: float = 0.0,
     epsilon: Union[float, None] = None,
@@ -231,10 +175,6 @@ def _ba_one_iter_random_subset_ssg(
 
     X_size, X_dims, X_timepoints = X.shape
     # Only update current_step_size on the first iteration
-    step_size_reduction = 0.0
-    if iteration == 0:
-        step_size_reduction = (initial_step_size - final_step_size) / X_size
-
     barycenter_copy = np.copy(barycenter)
 
     for i in shuffled_indices:
@@ -263,9 +203,7 @@ def _ba_one_iter_random_subset_ssg(
             new_ba[:, k] += barycenter_copy[:, k] - curr_ts[:, j]
 
         barycenter_copy -= (2.0 * current_step_size) * new_ba
-
-        current_step_size -= step_size_reduction
-    return barycenter_copy, current_step_size
+    return barycenter_copy
 
 
 if __name__ == "__main__":

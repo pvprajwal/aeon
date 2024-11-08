@@ -44,6 +44,9 @@ class KESBA(BaseClusterer):
         use_mean_as_init: bool = True,
         use_previous_cost: bool = False,
         use_all_first_subset_ba_iteration: bool = False,
+        ba_lr_func: str = "iterative",
+        decay_rate: float = 0.1,
+        min_step_size: float = 0.005,
     ):
         self.distance = distance
         self.max_iter = max_iter
@@ -51,7 +54,6 @@ class KESBA(BaseClusterer):
         self.verbose = verbose
         self.random_state = random_state
         self.distance_params = distance_params
-        # self.num_distance_calls = 0
         self.initial_step_size = initial_step_size
         self.final_step_size = final_step_size
         self.window = window
@@ -62,6 +64,9 @@ class KESBA(BaseClusterer):
         self.use_mean_as_init = use_mean_as_init
         self.use_previous_cost = use_previous_cost
         self.use_all_first_subset_ba_iteration = use_all_first_subset_ba_iteration
+        self.ba_lr_func = ba_lr_func
+        self.decay_rate = decay_rate
+        self.min_step_size = min_step_size
 
         self.cluster_centers_ = None
         self.labels_ = None
@@ -335,6 +340,9 @@ class KESBA(BaseClusterer):
                         previous_cost=previous_cost,
                         previous_distance_to_centre=previous_distance_to_centre,
                         use_all_first_subset_ba_iteration=self.use_all_first_subset_ba_iteration,
+                        lr_func=self.ba_lr_func,
+                        decay_rate=self.decay_rate,
+                        min_step_size=self.min_step_size,
                         **self._distance_params,
                     )
                 )
@@ -356,6 +364,9 @@ class KESBA(BaseClusterer):
                         previous_cost=previous_cost,
                         previous_distance_to_centre=previous_distance_to_centre,
                         use_all_first_subset_ba_iteration=self.use_all_first_subset_ba_iteration,
+                        lr_func=self.ba_lr_func,
+                        decay_rate=self.decay_rate,
+                        min_step_size=self.min_step_size,
                         **self._distance_params,
                     )
                 )
