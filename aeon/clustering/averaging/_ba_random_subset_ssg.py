@@ -28,6 +28,7 @@ def random_subset_ssg_barycenter_average(
     count_number_distance_calls: bool = False,
     previous_cost: Optional[float] = None,
     previous_distance_to_centre: Optional[np.ndarray] = None,
+    use_all_first_subset_ba_iteration: bool = False,
     **kwargs,
 ) -> np.ndarray:
     """Compute the random subset ssg barycenter average of time series.
@@ -142,7 +143,9 @@ def random_subset_ssg_barycenter_average(
     # Loop up to 30 times
     for i in range(max_iters):
         # Randomly order the dataset
-        shuffled_indices = random_state.permutation(X_size)[:num_ts_to_use]
+        shuffled_indices = random_state.permutation(X_size)
+        if i > 0 or not use_all_first_subset_ba_iteration:
+            shuffled_indices = shuffled_indices[:num_ts_to_use]
         # It then warps all onto centre to get the Fretchet distance
         # Updating the barycenter every iteration based on the warping
         barycenter, current_step_size = _ba_one_iter_random_subset_ssg(

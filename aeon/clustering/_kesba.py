@@ -43,6 +43,7 @@ class KESBA(BaseClusterer):
         count_distance_calls: bool = False,
         use_mean_as_init: bool = True,
         use_previous_cost: bool = False,
+        use_all_first_subset_ba_iteration: bool = False,
     ):
         self.distance = distance
         self.max_iter = max_iter
@@ -60,6 +61,7 @@ class KESBA(BaseClusterer):
         self.count_distance_calls = count_distance_calls
         self.use_mean_as_init = use_mean_as_init
         self.use_previous_cost = use_previous_cost
+        self.use_all_first_subset_ba_iteration = use_all_first_subset_ba_iteration
 
         self.cluster_centers_ = None
         self.labels_ = None
@@ -332,6 +334,7 @@ class KESBA(BaseClusterer):
                         verbose=self.verbose,
                         previous_cost=previous_cost,
                         previous_distance_to_centre=previous_distance_to_centre,
+                        use_all_first_subset_ba_iteration=self.use_all_first_subset_ba_iteration,
                         **self._distance_params,
                     )
                 )
@@ -352,6 +355,7 @@ class KESBA(BaseClusterer):
                         ba_subset_size=self.ba_subset_size,
                         previous_cost=previous_cost,
                         previous_distance_to_centre=previous_distance_to_centre,
+                        use_all_first_subset_ba_iteration=self.use_all_first_subset_ba_iteration,
                         **self._distance_params,
                     )
                 )
