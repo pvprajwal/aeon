@@ -12,6 +12,7 @@ from aeon.clustering.averaging._ba_random_subset_ssg_lr import (
     lr_random_subset_ssg_barycenter_average,
 )
 from aeon.clustering.averaging._ba_subgradient import subgradient_barycenter_average
+from aeon.clustering.averaging._soft_dba import soft_barycenter_average
 
 
 def elastic_barycenter_average(
@@ -194,6 +195,13 @@ def elastic_barycenter_average(
             decay_rate=decay_rate,
             min_step_size=final_step_size,
             **kwargs,
+        )
+    elif method == "soft_dba":
+        return soft_barycenter_average(
+            X,
+            gamma=kwargs.get("gamma", 0.1),
+            max_iters=max_iters,
+            tol=tol,
         )
     else:
         raise ValueError(
