@@ -13,6 +13,7 @@ from aeon.distances import pairwise_distance
 
 # change stopping condition so if it increase for 10% of the max_iters in a row stop rather than just once
 
+
 def lr_random_subset_ssg_barycenter_average(
     X: np.ndarray,
     distance: str = "dtw",
@@ -76,6 +77,7 @@ def lr_random_subset_ssg_barycenter_average(
             kwargs["g"] = 0.05
 
     num_ts_to_use = min(X_size, max(10, int(ba_subset_size * X_size)))
+    current_step_size = initial_step_size
     # Loop up to 30 times
     for i in range(max_iters):
         shuffled_indices = random_state.permutation(X_size)
@@ -90,12 +92,12 @@ def lr_random_subset_ssg_barycenter_average(
             current_step_size = initial_step_size * (1 - (i / max_iters) ** 2)
         elif lr_func == "exponential":
             current_step_size = initial_step_size * np.exp(-decay_rate * i)
-        elif lr_func == "cosine-annealing":
-            current_step_size = min_step_size + 0.5 * (
-                initial_step_size - min_step_size
-            ) * (1 + np.cos(np.pi * i / max_iters))
-        elif lr_func == "inverse-time":
-            current_step_size = initial_step_size / (1 + decay_rate * i)
+        elif lr_func == "dynamic-iterative":
+            current_step_size = current_step_size / (i + 1)
+        elif lr_func == "dynamic-linear":
+            current_step_size = current_step_size * (1 - i / max_iters)
+        elif lr_func == "dynamic-exponential":
+            current_step_size = current_step_size * np.exp(-decay_rate * i)
         else:
             raise ValueError("Invalid learning rate function")
 
