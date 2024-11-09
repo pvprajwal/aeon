@@ -199,7 +199,7 @@ def elastic_barycenter_average(
     elif method == "soft_dba":
         return soft_barycenter_average(
             X,
-            gamma=kwargs.get("gamma", 0.1),
+            gamma=kwargs.get("gamma", 1.0),
             max_iters=max_iters,
             tol=tol,
         )
