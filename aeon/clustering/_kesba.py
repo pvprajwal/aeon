@@ -46,8 +46,8 @@ class KESBA(BaseClusterer):
         use_all_first_subset_ba_iteration: bool = True,
         ba_lr_func: str = "exponential",
         decay_rate: float = 0.1,
-        use_ten_restarts = False,
-        use_random_init = False
+        use_ten_restarts=False,
+        use_random_init=False,
     ):
         self.distance = distance
         self.max_iter = max_iter
@@ -144,25 +144,27 @@ class KESBA(BaseClusterer):
         best_iters = None
 
         for i in range(10):
+            if self.verbose:
+                print(f"Starting restart {i+1}")
             if self.use_random_init:
                 cluster_centres, distances_to_centres, labels = self._random_init(
                     X,
                 )
             else:
-                cluster_centres, distances_to_centres, labels = self._elastic_kmeans_plus_plus(
-                    X,
+                cluster_centres, distances_to_centres, labels = (
+                    self._elastic_kmeans_plus_plus(
+                        X,
+                    )
                 )
 
             if self.verbose:
                 print("Starting inertia: ", np.sum(distances_to_centres**2))
 
-            labels, cluster_centers, inertia, n_iter = (
-                self._kesba(
-                    X,
-                    cluster_centres,
-                    distances_to_centres,
-                    labels,
-                )
+            labels, cluster_centers, inertia, n_iter = self._kesba(
+                X,
+                cluster_centres,
+                distances_to_centres,
+                labels,
             )
             if inertia < best_inertia:
                 best_centres = cluster_centers
@@ -170,11 +172,13 @@ class KESBA(BaseClusterer):
                 best_labels = labels
                 best_iters = n_iter
             self.total_distance_calls = (
-                    self.init_distance_calls
-                    + self.empty_cluster_distance_calls
-                    + self.update_distance_calls
-                    + self.assignment_distance_calls
+                self.init_distance_calls
+                + self.empty_cluster_distance_calls
+                + self.update_distance_calls
+                + self.assignment_distance_calls
             )
+            if self.verbose:
+                print(f"+++++++Finished restart {i+1}+++++")
         self.labels_ = best_labels
         self.cluster_centers_ = best_centres
         self.inertia_ = best_inertia
@@ -468,7 +472,9 @@ class KESBA(BaseClusterer):
         return labels, cluster_centres, distances_to_centres
 
     def _random_init(self, X):
-        cluster_centres = X[self._random_state.choice(X.shape[0], self.n_clusters, replace=False)]
+        cluster_centres = X[
+            self._random_state.choice(X.shape[0], self.n_clusters, replace=False)
+        ]
         pw_dists = pairwise_distance(
             X,
             cluster_centres,
