@@ -22,7 +22,7 @@ random_state = 1
 use_mean_init = False
 use_previous_cost = False
 use_all_first_subset_ba_iteration = False
-ba_lr_func = "cosine-annealing"
+ba_lr_func = "exponential"
 decay_rate = 0.4
 min_step_size = 0.0044
 
@@ -102,6 +102,8 @@ def run_tony_kesba(X_train, n_clusters):
         ba_lr_func=ba_lr_func,
         decay_rate=decay_rate,
         final_step_size=min_step_size,
+        use_random_init=False,
+        use_ten_restarts=True
     )
 
     start = time.time()
@@ -114,7 +116,7 @@ def run_tony_kesba(X_train, n_clusters):
 
 
 if __name__ == "__main__":
-    run_lloyds = True
+    run_lloyds = False
     run_elkan = False
     run_tony = True
 

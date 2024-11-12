@@ -38,14 +38,16 @@ class KESBA(BaseClusterer):
         verbose: bool = False,
         random_state: Optional[Union[int, RandomState]] = None,
         distance_params: Optional[dict] = None,
-        average_method: str = "random_subset_ssg",
+        average_method: str = "lr_random_subset_ssg",
         use_lloyds: bool = False,
         count_distance_calls: bool = False,
-        use_mean_as_init: bool = True,
-        use_previous_cost: bool = False,
-        use_all_first_subset_ba_iteration: bool = False,
-        ba_lr_func: str = "iterative",
+        use_mean_as_init: bool = False,
+        use_previous_cost: bool = True,
+        use_all_first_subset_ba_iteration: bool = True,
+        ba_lr_func: str = "exponential",
         decay_rate: float = 0.1,
+        use_ten_restarts = False,
+        use_random_init = False
     ):
         self.distance = distance
         self.max_iter = max_iter
@@ -65,6 +67,8 @@ class KESBA(BaseClusterer):
         self.use_all_first_subset_ba_iteration = use_all_first_subset_ba_iteration
         self.ba_lr_func = ba_lr_func
         self.decay_rate = decay_rate
+        self.use_ten_restarts = use_ten_restarts
+        self.use_random_init = use_random_init
 
         self.cluster_centers_ = None
         self.labels_ = None
@@ -83,6 +87,8 @@ class KESBA(BaseClusterer):
 
     def _fit(self, X: np.ndarray, y=None):
         self._check_params(X)
+        if self.use_ten_restarts:
+            return self._fit_random_restart(X)
         cluster_centres, distances_to_centres, labels = self._elastic_kmeans_plus_plus(
             X,
         )
@@ -120,6 +126,60 @@ class KESBA(BaseClusterer):
             + self.update_distance_calls
             + self.assignment_distance_calls
         )
+        if self.verbose:
+            print("+++++++++ Final output +++++++++")
+            print("Final inertia: ", self.inertia_)
+            print("Final number of iterations: ", self.n_iter_)
+            print("+++++++++ Number of distance calls +++++++++")
+            print("Init distance calls: ", self.init_distance_calls)
+            print("Empty cluster distance calls: ", self.empty_cluster_distance_calls)
+            print("Update distance calls: ", self.update_distance_calls)
+            print("Assignment distance calls: ", self.assignment_distance_calls)
+            print("Total distance calls: ", self.total_distance_calls)
+
+    def _fit_random_restart(self, X):
+        best_centres = None
+        best_inertia = np.inf
+        best_labels = None
+        best_iters = None
+
+        for i in range(10):
+            if self.use_random_init:
+                cluster_centres, distances_to_centres, labels = self._random_init(
+                    X,
+                )
+            else:
+                cluster_centres, distances_to_centres, labels = self._elastic_kmeans_plus_plus(
+                    X,
+                )
+
+            if self.verbose:
+                print("Starting inertia: ", np.sum(distances_to_centres**2))
+
+            labels, cluster_centers, inertia, n_iter = (
+                self._kesba(
+                    X,
+                    cluster_centres,
+                    distances_to_centres,
+                    labels,
+                )
+            )
+            if inertia < best_inertia:
+                best_centres = cluster_centers
+                best_inertia = inertia
+                best_labels = labels
+                best_iters = n_iter
+            self.total_distance_calls = (
+                    self.init_distance_calls
+                    + self.empty_cluster_distance_calls
+                    + self.update_distance_calls
+                    + self.assignment_distance_calls
+            )
+        self.labels_ = best_labels
+        self.cluster_centers_ = best_centres
+        self.inertia_ = best_inertia
+        self.n_iter_ = best_iters
+
         if self.verbose:
             print("+++++++++ Final output +++++++++")
             print("Final inertia: ", self.inertia_)
@@ -406,6 +466,19 @@ class KESBA(BaseClusterer):
                 raise EmptyClusterError
 
         return labels, cluster_centres, distances_to_centres
+
+    def _random_init(self, X):
+        cluster_centres = X[self._random_state.choice(X.shape[0], self.n_clusters, replace=False)]
+        pw_dists = pairwise_distance(
+            X,
+            cluster_centres,
+            metric=self.distance,
+            **self._distance_params,
+        )
+        min_dists = pw_dists.min(axis=1)
+        labels = pw_dists.argmin(axis=1)
+        self.init_distance_calls += len(X) * len(cluster_centres)
+        return cluster_centres, min_dists, labels
 
     def _elastic_kmeans_plus_plus(
         self,
