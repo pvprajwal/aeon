@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.utils import check_random_state
 
 from aeon.clustering._k_means import EmptyClusterError
-from aeon.clustering.averaging import elastic_barycenter_average
+from aeon.clustering.averaging import kasba_average
 from aeon.distances import msm_distance, msm_pairwise_distance
 
 
@@ -105,15 +105,19 @@ def _kesba(
             verbose,
         )
 
-        lloyds_labels, lloyds_distances_to_centres, lloyds_inertia = _kesba_lloyds_assignment(
-            X,
-            cluster_centres,
-            window,
-            verbose,
+        lloyds_labels, lloyds_distances_to_centres, lloyds_inertia = (
+            _kesba_lloyds_assignment(
+                X,
+                cluster_centres,
+                window,
+                verbose,
+            )
         )
 
         labels_equal = np.array_equal(labels, lloyds_labels)
-        distances_to_centres_equal = np.array_equal(distances_to_centres, lloyds_distances_to_centres)
+        distances_to_centres_equal = np.array_equal(
+            distances_to_centres, lloyds_distances_to_centres
+        )
         inertia_equal = inertia == lloyds_inertia
 
         if not labels_equal:
@@ -338,7 +342,7 @@ def _kesba_update(
         #     method="random_subset_ssg",  # "subgradient",
         # )
 
-        curr_centre, dist_to_centre = elastic_barycenter_average(
+        curr_centre, dist_to_centre = kasba_average(
             X[labels == j],
             distance="msm",
             max_iters=50,
@@ -413,7 +417,13 @@ def _kesba_kmeans_plus_plus(
         indexes.append(next_center_idx)
 
         new_distances = msm_pairwise_distance(
-            X, X[next_center_idx], window=window, independent=False, c=1.0, itakura_max_slope=None, unequal_length=False
+            X,
+            X[next_center_idx],
+            window=window,
+            independent=False,
+            c=1.0,
+            itakura_max_slope=None,
+            unequal_length=False,
         ).flatten()
 
         closer_points = new_distances < min_distances

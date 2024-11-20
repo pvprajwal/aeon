@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from aeon.clustering.averaging import (
-    elastic_barycenter_average,
+    kasba_average,
     petitjean_barycenter_average,
     subgradient_barycenter_average,
 )
@@ -134,9 +134,7 @@ def test_petitjean_dba():
     """Test petitjean dba functionality."""
     X_train_uni = make_example_3d_numpy(10, 1, 10, random_state=1, return_y=False)
 
-    average_ts_uni = elastic_barycenter_average(
-        X_train_uni, method="petitjean", random_state=1
-    )
+    average_ts_uni = kasba_average(X_train_uni, method="petitjean", random_state=1)
     call_directly_average_ts_uni = petitjean_barycenter_average(
         X_train_uni, random_state=1
     )
@@ -147,9 +145,7 @@ def test_petitjean_dba():
 
     X_train_multi = make_example_3d_numpy(10, 3, 10, random_state=1, return_y=False)
 
-    average_ts_multi = elastic_barycenter_average(
-        X_train_multi, method="petitjean", random_state=1
-    )
+    average_ts_multi = kasba_average(X_train_multi, method="petitjean", random_state=1)
     call_directly_average_ts_multi = petitjean_barycenter_average(
         X_train_multi, random_state=1
     )
@@ -164,9 +160,7 @@ def test_subgradient_dba():
     """Test stochastic subgradient dba functionality."""
     X_train_uni = make_example_3d_numpy(10, 1, 10, random_state=1, return_y=False)
 
-    average_ts_uni = elastic_barycenter_average(
-        X_train_uni, method="subgradient", random_state=1
-    )
+    average_ts_uni = kasba_average(X_train_uni, method="subgradient", random_state=1)
     call_directly_average_ts_uni = subgradient_barycenter_average(
         X_train_uni, random_state=1
     )
@@ -178,7 +172,7 @@ def test_subgradient_dba():
 
     X_train_multi = make_example_3d_numpy(10, 3, 10, random_state=1, return_y=False)
 
-    average_ts_multi = elastic_barycenter_average(
+    average_ts_multi = kasba_average(
         X_train_multi, method="subgradient", random_state=1
     )
     call_directly_average_ts_multi = subgradient_barycenter_average(
@@ -210,11 +204,11 @@ def test_elastic_dba_variations(distance):
     """Test dba functionality with different distance measures."""
     X_train = make_example_3d_numpy(4, 2, 10, random_state=1, return_y=False)
 
-    average_ts = elastic_barycenter_average(
+    average_ts = kasba_average(
         X_train, distance=distance, window=0.2, independent=False
     )
 
-    subgradient_ts = elastic_barycenter_average(
+    subgradient_ts = kasba_average(
         X_train, distance=distance, window=0.2, independent=False, method="subgradient"
     )
 
@@ -248,10 +242,10 @@ def test_dba_init(init_barycenter):
         multivariate_init = init_barycenter[1]
 
     X_train_uni = make_example_3d_numpy(4, 1, 10, random_state=1, return_y=False)
-    average_ts_univ = elastic_barycenter_average(
+    average_ts_univ = kasba_average(
         X_train_uni, window=0.2, init_barycenter=univariate_init
     )
-    subgradient_ts_univ = elastic_barycenter_average(
+    subgradient_ts_univ = kasba_average(
         X_train_uni, window=0.2, method="subgradient", init_barycenter=univariate_init
     )
 
@@ -259,10 +253,10 @@ def test_dba_init(init_barycenter):
     assert isinstance(subgradient_ts_univ, np.ndarray)
 
     X_train_multi = make_example_3d_numpy(4, 4, 10, random_state=1, return_y=False)
-    average_ts_multi = elastic_barycenter_average(
+    average_ts_multi = kasba_average(
         X_train_multi, window=0.2, init_barycenter=multivariate_init
     )
-    subgradient_ts_multi = elastic_barycenter_average(
+    subgradient_ts_multi = kasba_average(
         X_train_multi,
         window=0.2,
         method="subgradient",
@@ -278,7 +272,7 @@ def test_incorrect_input():
     # Test invalid distance
     X = make_example_3d_numpy(10, 1, 10, return_y=False)
     with pytest.raises(ValueError, match="Distance parameter invalid"):
-        elastic_barycenter_average(X, distance="Distance parameter invalid")
+        kasba_average(X, distance="Distance parameter invalid")
 
     # Test invalid init barycenter string
     with pytest.raises(
@@ -286,7 +280,7 @@ def test_incorrect_input():
         match="init_barycenter string is invalid. Please use one of the "
         "following: 'mean', 'medoids', 'random'",
     ):
-        elastic_barycenter_average(X, init_barycenter="init parameter invalid")
+        kasba_average(X, init_barycenter="init parameter invalid")
 
     # Test invalid init barycenter type
     with pytest.raises(
@@ -294,7 +288,7 @@ def test_incorrect_input():
         match="init_barycenter parameter is invalid. It must either be a "
         "str or a np.ndarray",
     ):
-        elastic_barycenter_average(X, init_barycenter=[[1, 2, 3]])
+        kasba_average(X, init_barycenter=[[1, 2, 3]])
 
     # Test invalid init barycenter with wrong shape
     with pytest.raises(
@@ -303,7 +297,7 @@ def test_incorrect_input():
             "init_barycenter shape is invalid. Expected (1, 10) but " "got (1, 9)"
         ),
     ):
-        elastic_barycenter_average(X, init_barycenter=make_series(9, return_numpy=True))
+        kasba_average(X, init_barycenter=make_series(9, return_numpy=True))
 
     # Test invalid berycenter method
     with pytest.raises(
@@ -313,7 +307,7 @@ def test_incorrect_input():
             "following: ['petitjean', 'subgradient', 'random-subset-ssg']"
         ),
     ):
-        elastic_barycenter_average(X, method="Not a real method")
+        kasba_average(X, method="Not a real method")
 
 
 def test_ba_weights():
@@ -326,22 +320,22 @@ def test_ba_weights():
     np.random.seed(1)
     random_weights = np.random.rand(num_cases)
 
-    ba_no_weight_uni = elastic_barycenter_average(X_train_uni, random_state=1)
-    ssg_ba_no_weight_uni = elastic_barycenter_average(
+    ba_no_weight_uni = kasba_average(X_train_uni, random_state=1)
+    ssg_ba_no_weight_uni = kasba_average(
         X_train_uni, method="subgradient", random_state=1
     )
 
-    ba_weights_ones_uni = elastic_barycenter_average(
+    ba_weights_ones_uni = kasba_average(
         X_train_uni, weights=ones_weights, random_state=1
     )
-    ssg_ba_weights_ones_uni = elastic_barycenter_average(
+    ssg_ba_weights_ones_uni = kasba_average(
         X_train_uni, weights=ones_weights, method="subgradient", random_state=1
     )
 
-    ba_weights_random_uni = elastic_barycenter_average(
+    ba_weights_random_uni = kasba_average(
         X_train_uni, weights=random_weights, random_state=1
     )
-    ssg_ba_weights_random_uni = elastic_barycenter_average(
+    ssg_ba_weights_random_uni = kasba_average(
         X_train_uni, weights=random_weights, method="subgradient", random_state=1
     )
 
@@ -354,21 +348,21 @@ def test_ba_weights():
         num_cases, 4, 10, random_state=1, return_y=False
     )
 
-    ba_no_wigtht_uni = elastic_barycenter_average(X_train_multi, random_state=1)
-    ssg_ba_no_weight_multi = elastic_barycenter_average(
+    ba_no_wigtht_uni = kasba_average(X_train_multi, random_state=1)
+    ssg_ba_no_weight_multi = kasba_average(
         X_train_multi, method="subgradient", random_state=1
     )
-    ba_weights_ones_multi = elastic_barycenter_average(
+    ba_weights_ones_multi = kasba_average(
         X_train_multi, weights=ones_weights, random_state=1
     )
-    ssg_ba_weights_ones_multi = elastic_barycenter_average(
+    ssg_ba_weights_ones_multi = kasba_average(
         X_train_multi, weights=ones_weights, method="subgradient", random_state=1
     )
 
-    ba_weights_random_multi = elastic_barycenter_average(
+    ba_weights_random_multi = kasba_average(
         X_train_multi, weights=random_weights, random_state=1
     )
-    ssg_ba_weights_random_multi = elastic_barycenter_average(
+    ssg_ba_weights_random_multi = kasba_average(
         X_train_multi, weights=random_weights, method="subgradient", random_state=1
     )
 

@@ -8,14 +8,12 @@ from aeon.clustering.averaging._ba_petitjean import petitjean_barycenter_average
 from aeon.clustering.averaging._ba_random_subset_ssg import (
     random_subset_ssg_barycenter_average,
 )
-from aeon.clustering.averaging._ba_random_subset_ssg_lr import (
-    lr_random_subset_ssg_barycenter_average,
-)
 from aeon.clustering.averaging._ba_subgradient import subgradient_barycenter_average
+from aeon.clustering.averaging._kesba_average import _kesba_average
 from aeon.clustering.averaging._soft_dba import soft_barycenter_average
 
 
-def elastic_barycenter_average(
+def kasba_average(
     X: np.ndarray,
     distance: str = "dtw",
     max_iters: int = 50,
@@ -124,87 +122,25 @@ def elastic_barycenter_average(
         if count_number_distance_calls:
             return X[0], 0
         return X[0]
-    if method == "petitjean":
-        return petitjean_barycenter_average(
-            X,
-            distance=distance,
-            max_iters=max_iters,
-            tol=tol,
-            init_barycenter=init_barycenter,
-            precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
-            verbose=verbose,
-            random_state=random_state,
-            return_distances=return_distances,
-            count_number_distance_calls=count_number_distance_calls,
-            **kwargs,
-        )
-    elif method == "subgradient":
-        return subgradient_barycenter_average(
-            X,
-            distance=distance,
-            max_iters=max_iters,
-            tol=tol,
-            init_barycenter=init_barycenter,
-            initial_step_size=initial_step_size,
-            final_step_size=final_step_size,
-            precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
-            verbose=verbose,
-            random_state=random_state,
-            return_distances=return_distances,
-            count_number_distance_calls=count_number_distance_calls,
-            **kwargs,
-        )
-    elif method == "random_subset_ssg":
-        return random_subset_ssg_barycenter_average(
-            X,
-            distance=distance,
-            max_iters=max_iters,
-            ba_subset_size=ba_subset_size,
-            tol=tol,
-            init_barycenter=init_barycenter,
-            initial_step_size=initial_step_size,
-            final_step_size=final_step_size,
-            precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
-            verbose=verbose,
-            random_state=random_state,
-            return_distances=return_distances,
-            count_number_distance_calls=count_number_distance_calls,
-            previous_cost=previous_cost,
-            previous_distance_to_centre=previous_distance_to_centre,
-            use_all_first_subset_ba_iteration=use_all_first_subset_ba_iteration,
-            **kwargs,
-        )
-    elif method == "lr_random_subset_ssg":
-        return lr_random_subset_ssg_barycenter_average(
-            X,
-            distance=distance,
-            max_iters=max_iters,
-            tol=tol,
-            init_barycenter=init_barycenter,
-            precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
-            verbose=verbose,
-            random_state=random_state,
-            ba_subset_size=ba_subset_size,
-            return_distances=return_distances,
-            count_number_distance_calls=count_number_distance_calls,
-            previous_cost=previous_cost,
-            previous_distance_to_centre=previous_distance_to_centre,
-            use_all_first_subset_ba_iteration=use_all_first_subset_ba_iteration,
-            lr_func=lr_func,
-            initial_step_size=initial_step_size,
-            decay_rate=decay_rate,
-            min_step_size=final_step_size,
-            **kwargs,
-        )
-    elif method == "soft_dba":
-        return soft_barycenter_average(
-            X,
-            gamma=kwargs.get("gamma", 1.0),
-            max_iters=max_iters,
-            tol=tol,
-        )
-    else:
-        raise ValueError(
-            f"Invalid method: {method}. Please use one of the following: "
-            f"['petitjean', 'subgradient', 'random-subset-ssg']"
-        )
+
+    return _kesba_average(
+        X,
+        distance=distance,
+        max_iters=max_iters,
+        tol=tol,
+        init_barycenter=init_barycenter,
+        precomputed_medoids_pairwise_distance=precomputed_medoids_pairwise_distance,
+        verbose=verbose,
+        random_state=random_state,
+        ba_subset_size=ba_subset_size,
+        return_distances=return_distances,
+        count_number_distance_calls=count_number_distance_calls,
+        previous_cost=previous_cost,
+        previous_distance_to_centre=previous_distance_to_centre,
+        use_all_first_subset_ba_iteration=use_all_first_subset_ba_iteration,
+        lr_func=lr_func,
+        initial_step_size=initial_step_size,
+        decay_rate=decay_rate,
+        min_step_size=final_step_size,
+        **kwargs,
+    )

@@ -14,7 +14,7 @@ from aeon.distances import pairwise_distance
 # change stopping condition so if it increase for 10% of the max_iters in a row stop rather than just once
 
 
-def lr_random_subset_ssg_barycenter_average(
+def _kesba_average(
     X: np.ndarray,
     distance: str = "dtw",
     max_iters: int = 30,
@@ -78,7 +78,6 @@ def lr_random_subset_ssg_barycenter_average(
 
     num_ts_to_use = min(X_size, max(10, int(ba_subset_size * X_size)))
     current_step_size = initial_step_size
-    # Loop up to 30 times
     for i in range(max_iters):
         shuffled_indices = random_state.permutation(X_size)
         if i > 0 or not use_all_first_subset_ba_iteration:
@@ -134,10 +133,6 @@ def lr_random_subset_ssg_barycenter_average(
         if verbose:
             print(f"[Subset-SSG-BA] epoch {i}, cost {cost}")  # noqa: T001, T201
 
-    if verbose:
-        print(
-            f"[Subset-SSG-BA] finished in {i + 1} iterations, cost {cost}"
-        )  # noqa: T001, T201
 
     if use_all_first_subset_ba_iteration:
         num_dist_computations = (i * num_ts_to_use) + X_size
@@ -210,13 +205,13 @@ def _ba_one_iter_random_subset_ssg(
 
 
 if __name__ == "__main__":
-    from aeon.clustering.averaging import elastic_barycenter_average
+    from aeon.clustering.averaging import kasba_average
     from aeon.testing.data_generation import make_example_3d_numpy
 
     X_train = make_example_3d_numpy(20, 2, 10, random_state=1, return_y=False)
     distance = "dtw"
 
-    holdit_ts = elastic_barycenter_average(
+    holdit_ts = kasba_average(
         X_train,
         distance=distance,
         window=0.2,
