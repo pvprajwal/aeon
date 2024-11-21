@@ -349,6 +349,7 @@ def msm_pairwise_distance(
     independent: bool = True,
     c: float = 1.0,
     itakura_max_slope: Optional[float] = None,
+    mask: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """Compute the msm pairwise distance between a set of time series.
 
@@ -426,14 +427,14 @@ def msm_pairwise_distance(
     if y is None:
         # To self
         return _msm_pairwise_distance(
-            _X, window, independent, c, itakura_max_slope, unequal_length
+            _X, window, independent, c, itakura_max_slope, unequal_length, mask
         )
 
     _y, unequal_length = _convert_collection_to_numba_list(
         y, "y", multivariate_conversion
     )
     return _msm_from_multiple_to_multiple_distance(
-        _X, _y, window, independent, c, itakura_max_slope, unequal_length
+        _X, _y, window, independent, c, itakura_max_slope, unequal_length, mask
     )
 
 
@@ -445,6 +446,7 @@ def _msm_pairwise_distance(
     c: float,
     itakura_max_slope: Optional[float],
     unequal_length: bool,
+    mask: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     n_cases = len(X)
     distances = np.zeros((n_cases, n_cases))
@@ -456,6 +458,8 @@ def _msm_pairwise_distance(
         )
     for i in range(n_cases):
         for j in range(i + 1, n_cases):
+            if mask is not None and not mask[i, j]:
+                continue
             x1, x2 = X[i], X[j]
             if unequal_length:
                 bounding_matrix = create_bounding_matrix(
@@ -476,6 +480,7 @@ def _msm_from_multiple_to_multiple_distance(
     c: float,
     itakura_max_slope: Optional[float],
     unequal_length: bool,
+    mask: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     n_cases = len(x)
     m_cases = len(y)
@@ -487,6 +492,8 @@ def _msm_from_multiple_to_multiple_distance(
         )
     for i in range(n_cases):
         for j in range(m_cases):
+            if mask is not None and not mask[i, j]:
+                continue
             x1, y1 = x[i], y[j]
             if unequal_length:
                 bounding_matrix = create_bounding_matrix(

@@ -51,6 +51,9 @@ class KESBA(BaseClusterer):
         use_ten_restarts=False,
         use_random_init=False,
         init=None,
+        skip_barycentre_if_labels_no_change=False,
+        use_new_kmeans_plus=False,
+        use_check_centres_change_assignment=False,
     ):
         self.distance = distance
         self.max_iter = max_iter
@@ -74,6 +77,9 @@ class KESBA(BaseClusterer):
         self.use_random_init = use_random_init
         self.n_clusters = n_clusters
         self.init = init
+        self.skip_barycentre_if_labels_no_change = skip_barycentre_if_labels_no_change
+        self.use_new_kmeans_plus = use_new_kmeans_plus
+        self.use_check_centres_change_assignment = use_check_centres_change_assignment
 
         self.cluster_centers_ = None
         self.labels_ = None
@@ -96,13 +102,24 @@ class KESBA(BaseClusterer):
             return self._fit_random_restart(X)
 
         if isinstance(self.init, tuple):
-            cluster_centres, distances_to_centres, labels = self.init
-        else:
             cluster_centres, distances_to_centres, labels = (
-                self._elastic_kmeans_plus_plus(
-                    X,
-                )
+                self.init[0].copy(),
+                self.init[1].copy(),
+                self.init[2].copy(),
             )
+        else:
+            if self.use_new_kmeans_plus:
+                cluster_centres, distances_to_centres, labels = (
+                    self._elastic_kmeans_plus_plus_new(
+                        X,
+                    )
+                )
+            else:
+                cluster_centres, distances_to_centres, labels = (
+                    self._elastic_kmeans_plus_plus(
+                        X,
+                    )
+                )
 
         if self.verbose:
             print("Starting inertia: ", np.sum(distances_to_centres**2))
@@ -137,16 +154,16 @@ class KESBA(BaseClusterer):
             + self.update_distance_calls
             + self.assignment_distance_calls
         )
-        if self.verbose:
-            print("+++++++++ Final output +++++++++")
-            print("Final inertia: ", self.inertia_)
-            print("Final number of iterations: ", self.n_iter_)
-            print("+++++++++ Number of distance calls +++++++++")
-            print("Init distance calls: ", self.init_distance_calls)
-            print("Empty cluster distance calls: ", self.empty_cluster_distance_calls)
-            print("Update distance calls: ", self.update_distance_calls)
-            print("Assignment distance calls: ", self.assignment_distance_calls)
-            print("Total distance calls: ", self.total_distance_calls)
+        # if self.verbose:
+        print("+++++++++ Final output +++++++++")
+        print("Final inertia: ", self.inertia_)
+        print("Final number of iterations: ", self.n_iter_)
+        print("+++++++++ Number of distance calls +++++++++")
+        print("Init distance calls: ", self.init_distance_calls)
+        print("Empty cluster distance calls: ", self.empty_cluster_distance_calls)
+        print("Update distance calls: ", self.update_distance_calls)
+        print("Assignment distance calls: ", self.assignment_distance_calls)
+        print("Total distance calls: ", self.total_distance_calls)
 
     def _fit_random_restart(self, X):
         best_centres = None
@@ -234,22 +251,26 @@ class KESBA(BaseClusterer):
         prev_inertia = np.inf
         prev_labels = None
         prev_cluster_centres = None
+        prev_distances_to_centres = None
         for i in range(self.max_iter):
 
             cluster_centres, distances_to_centres = self._kesba_update(
-                X,
-                cluster_centres,
-                labels,
-                distances_to_centres,
+                X, cluster_centres, labels, distances_to_centres, prev_labels
             )
 
-            labels, distances_to_centres, inertia = self._kesba_assignment(
-                X,
-                cluster_centres,
-                distances_to_centres,
-                labels,
-                i == 0,
+            labels, distances_to_centres, inertia, prev_distances_to_centres = (
+                self._kesba_assignment(
+                    X,
+                    cluster_centres,
+                    distances_to_centres,
+                    labels,
+                    i == 0,
+                    prev_cluster_centres,
+                    prev_distances_to_centres,
+                )
             )
+            if not self.use_check_centres_change_assignment:
+                prev_distances_to_centres = None
 
             labels, cluster_centres, distances_to_centres = self._handle_empty_cluster(
                 X,
@@ -333,14 +354,28 @@ class KESBA(BaseClusterer):
         distances_to_centres,
         labels,
         is_first_iteration,
+        prev_cluster_centres,
+        prev_distances_to_centres=None,
     ):
         distances_between_centres = pairwise_distance(
             cluster_centres,
-            cluster_centres,
+            # cluster_centres,
             metric=self.distance,
             **self._distance_params,
         )
-        self.assignment_distance_calls += len(cluster_centres) * len(cluster_centres)
+        self.assignment_distance_calls += (
+            len(cluster_centres) * len(cluster_centres)
+        ) - self.n_clusters
+
+        centres_same = np.full((self.n_clusters), False)
+        for i in range(self.n_clusters):
+            if not is_first_iteration and np.array_equal(
+                cluster_centres[i], prev_cluster_centres[i]
+            ):
+                centres_same[i] = True
+
+        distances_to_all_centres = np.zeros((X.shape[0], self.n_clusters))
+
         for i in range(X.shape[0]):
             min_dist = distances_to_centres[i]
             closest = labels[i]
@@ -350,14 +385,17 @@ class KESBA(BaseClusterer):
                 bound = distances_between_centres[j, closest] / 2.0
                 if min_dist < bound:
                     continue
-
-                dist = distance_func(
-                    X[i],
-                    cluster_centres[j],
-                    metric=self.distance,
-                    **self._distance_params,
-                )
-                self.assignment_distance_calls += 1
+                if centres_same[j] and prev_distances_to_centres is not None:
+                    dist = prev_distances_to_centres[i, j]
+                else:
+                    dist = distance_func(
+                        X[i],
+                        cluster_centres[j],
+                        metric=self.distance,
+                        **self._distance_params,
+                    )
+                    self.assignment_distance_calls += 1
+                distances_to_all_centres[i, j] = dist
                 if dist < min_dist:
                     min_dist = dist
                     closest = j
@@ -368,7 +406,7 @@ class KESBA(BaseClusterer):
         inertia = np.sum(distances_to_centres**2)
         if self.verbose:
             print(f"{inertia:.5f}", end=" --> ")
-        return labels, distances_to_centres, inertia
+        return labels, distances_to_centres, inertia, distances_to_all_centres
 
     def _kesba_lloyds_assignment(
         self,
@@ -387,11 +425,7 @@ class KESBA(BaseClusterer):
         return labels, distances_to_centres, inertia
 
     def _kesba_update(
-        self,
-        X,
-        cluster_centres,
-        labels,
-        distances_to_centres,
+        self, X, cluster_centres, labels, distances_to_centres, prev_labels
     ):
 
         for j in range(self.n_clusters):
@@ -402,29 +436,71 @@ class KESBA(BaseClusterer):
                 previous_cost = np.sum(previous_distance_to_centre)
 
             if self.use_mean_as_init:
-                curr_centre, dist_to_centre, num_distance_calls = kasba_average(
-                    X[labels == j],
-                    max_iters=50,
-                    method=self.average_method,
-                    # init_barycenter=cluster_centres[j],
-                    distance=self.distance,
-                    initial_step_size=self.initial_step_size,
-                    final_step_size=self.final_step_size,
-                    random_state=self._random_state,
-                    return_distances=True,
-                    count_number_distance_calls=True,
-                    ba_subset_size=self.ba_subset_size,
-                    verbose=self.verbose,
-                    previous_cost=previous_cost,
-                    previous_distance_to_centre=previous_distance_to_centre,
-                    use_all_first_subset_ba_iteration=self.use_all_first_subset_ba_iteration,
-                    lr_func=self.ba_lr_func,
-                    decay_rate=self.decay_rate,
-                    **self._distance_params,
+                curr_centre, dist_to_centre, num_distance_calls = (
+                    elastic_barycenter_average(
+                        X[labels == j],
+                        max_iters=50,
+                        method=self.average_method,
+                        # init_barycenter=cluster_centres[j],
+                        distance=self.distance,
+                        initial_step_size=self.initial_step_size,
+                        final_step_size=self.final_step_size,
+                        random_state=self._random_state,
+                        return_distances=True,
+                        count_number_distance_calls=True,
+                        ba_subset_size=self.ba_subset_size,
+                        verbose=self.verbose,
+                        previous_cost=previous_cost,
+                        previous_distance_to_centre=previous_distance_to_centre,
+                        use_all_first_subset_ba_iteration=self.use_all_first_subset_ba_iteration,
+                        lr_func=self.ba_lr_func,
+                        decay_rate=self.decay_rate,
+                        **self._distance_params,
+                    )
                 )
+                self.update_distance_calls += num_distance_calls
+                cluster_centres[j] = curr_centre
+                distances_to_centres[labels == j] = dist_to_centre
+            elif self.skip_barycentre_if_labels_no_change:
+                current_cluster_indices = labels == j
+                previous_cluster_indices = prev_labels == j
+
+                # If the labels havent changed no need to recalculate the centroid
+                if not np.array_equal(
+                    current_cluster_indices, previous_cluster_indices
+                ):
+                    previous_distance_to_centre = distances_to_centres[labels == j]
+                    previous_cost = np.sum(previous_distance_to_centre)
+                    curr_centre, dist_to_centre, num_distance_calls = (
+                        elastic_barycenter_average(
+                            X[labels == j],
+                            max_iters=50,
+                            method=self.average_method,
+                            init_barycenter=cluster_centres[j],
+                            distance=self.distance,
+                            initial_step_size=self.initial_step_size,
+                            final_step_size=self.final_step_size,
+                            random_state=self._random_state,
+                            return_distances=True,
+                            count_number_distance_calls=True,
+                            verbose=self.verbose,
+                            ba_subset_size=self.ba_subset_size,
+                            previous_cost=previous_cost,
+                            previous_distance_to_centre=previous_distance_to_centre,
+                            use_all_first_subset_ba_iteration=self.use_all_first_subset_ba_iteration,
+                            lr_func=self.ba_lr_func,
+                            decay_rate=self.decay_rate,
+                            **self._distance_params,
+                        )
+                    )
+
+                    self.update_distance_calls += num_distance_calls
+                    cluster_centres[j] = curr_centre
+                    distances_to_centres[current_cluster_indices] = dist_to_centre
+
             else:
                 curr_centre, dist_to_centre, num_distance_calls = (
-                    lr_random_subset_ssg_barycenter_average(
+                    elastic_barycenter_average(
                         X[labels == j],
                         max_iters=50,
                         method=self.average_method,
@@ -445,9 +521,9 @@ class KESBA(BaseClusterer):
                         **self._distance_params,
                     )
                 )
-            self.update_distance_calls += num_distance_calls
-            cluster_centres[j] = curr_centre
-            distances_to_centres[labels == j] = dist_to_centre
+                self.update_distance_calls += num_distance_calls
+                cluster_centres[j] = curr_centre
+                distances_to_centres[labels == j] = dist_to_centre
 
         return cluster_centres, distances_to_centres
 
@@ -518,6 +594,52 @@ class KESBA(BaseClusterer):
             ).flatten()
             self.init_distance_calls += len(X) * len(X[next_center_idx])
 
+            closer_points = new_distances < min_distances
+            min_distances[closer_points] = new_distances[closer_points]
+            labels[closer_points] = i
+
+        centers = X[indexes]
+        return centers, min_distances, labels
+
+    def _elastic_kmeans_plus_plus_new(self, X):
+        # Initialize with the first random center
+        _X = X.copy()
+        initial_center_idx = self._random_state.randint(X.shape[0])
+        indexes = [initial_center_idx]
+
+        mask = np.full((X.shape[0], 1), True)
+        mask[initial_center_idx, 0] = False
+
+        # Compute initial distances from all points to the first center
+        min_distances = pairwise_distance(
+            X,
+            X[initial_center_idx],
+            metric=self.distance,
+            mask=mask,
+            **self._distance_params,
+        ).flatten()
+        self.init_distance_calls += len(X) - 1
+        labels = np.zeros(X.shape[0], dtype=int)
+
+        # Select remaining centroids
+        for i in range(1, self.n_clusters):
+            # Compute probabilities proportional to squared distances
+            probabilities = min_distances / min_distances.sum()
+            next_center_idx = self._random_state.choice(X.shape[0], p=probabilities)
+            indexes.append(next_center_idx)
+            mask[next_center_idx, 0] = False
+
+            # Compute distances to the new center only for points not already closer
+            new_distances = pairwise_distance(
+                X,
+                X[next_center_idx : next_center_idx + 1],
+                metric=self.distance,
+                mask=mask,
+                **self._distance_params,
+            ).flatten()
+            self.init_distance_calls += len(X) - (i + 1)
+
+            # Update minimum distances and labels where the new centroid is closer
             closer_points = new_distances < min_distances
             min_distances[closer_points] = new_distances[closer_points]
             labels[closer_points] = i

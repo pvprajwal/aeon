@@ -22,7 +22,7 @@ def kasba_average(
     **kwargs,
 ) -> tuple[np.ndarray, np.ndarray, int]:
     if len(X) <= 1:
-        return X
+        return X, np.zeros(X.shape[0]), 0
 
     if X.ndim == 3:
         _X = X

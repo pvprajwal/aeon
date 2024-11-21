@@ -78,7 +78,11 @@ class KASBA(BaseClusterer):
     def _fit(self, X: np.ndarray, y=None):
         self._check_params(X)
         if isinstance(self.init, tuple):
-            cluster_centres, distances_to_centres, labels = self.init
+            cluster_centres, distances_to_centres, labels = (
+                self.init[0].copy(),
+                self.init[1].copy(),
+                self.init[2].copy(),
+            )
         else:
             cluster_centres, distances_to_centres, labels = (
                 self._elastic_kmeans_plus_plus(
@@ -91,6 +95,22 @@ class KASBA(BaseClusterer):
             distances_to_centres,
             labels,
         )
+        self.total_distance_calls = (
+            self.init_distance_calls
+            + self.empty_cluster_distance_calls
+            + self.update_distance_calls
+            + self.assignment_distance_calls
+        )
+        print("+++++++++ Final output +++++++++")
+        print("Final inertia: ", self.inertia_)
+        print("Final number of iterations: ", self.n_iter_)
+        print("+++++++++ Number of distance calls +++++++++")
+        print("Init distance calls: ", self.init_distance_calls)
+        print("Empty cluster distance calls: ", self.empty_cluster_distance_calls)
+        print("Update distance calls: ", self.update_distance_calls)
+        print("Assignment distance calls: ", self.assignment_distance_calls)
+        print("Total distance calls: ", self.total_distance_calls)
+
         return self
 
     def _predict(self, X: np.ndarray, y=None) -> np.ndarray:
@@ -125,6 +145,7 @@ class KASBA(BaseClusterer):
                 cluster_centres,
                 labels,
                 distances_to_centres,
+                prev_labels,
             )
 
             labels, distances_to_centres, inertia = self._fast_assign(
@@ -201,13 +222,19 @@ class KASBA(BaseClusterer):
         cluster_centres,
         labels,
         distances_to_centres,
+        prev_labels,
     ):
-
         for j in range(self.n_clusters):
+            # Check if the labels for cluster j have changed
+            current_cluster_indices = labels == j
+            previous_cluster_indices = prev_labels == j
+
+            # If the labels havent changed no need to recalculate the centroid
+            # if not np.array_equal(current_cluster_indices, previous_cluster_indices):
             previous_distance_to_centre = distances_to_centres[labels == j]
             previous_cost = np.sum(previous_distance_to_centre)
             curr_centre, dist_to_centre, num_distance_calls = kasba_average(
-                X=X[labels == j],
+                X=X[current_cluster_indices],
                 init_barycenter=cluster_centres[j],
                 previous_cost=previous_cost,
                 distance=self.distance,
@@ -222,7 +249,7 @@ class KASBA(BaseClusterer):
             )
             self.update_distance_calls += num_distance_calls
             cluster_centres[j] = curr_centre
-            distances_to_centres[labels == j] = dist_to_centre
+            distances_to_centres[current_cluster_indices] = dist_to_centre
 
         return cluster_centres, distances_to_centres
 
@@ -262,10 +289,17 @@ class KASBA(BaseClusterer):
         initial_center_idx = self._random_state.randint(X.shape[0])
         indexes = [initial_center_idx]
 
+        mask = np.full((X.shape[0], 1), True)
+        mask[initial_center_idx, 0] = False
+
         min_distances = pairwise_distance(
-            X, X[initial_center_idx], metric=self.distance, **self._distance_params
+            X,
+            X[initial_center_idx],
+            metric=self.distance,
+            mask=mask,
+            **self._distance_params,
         ).flatten()
-        self.init_distance_calls += len(X) * len(X[initial_center_idx])
+        self.init_distance_calls += len(X) - 1
         labels = np.zeros(X.shape[0], dtype=int)
 
         for i in range(1, self.n_clusters):
@@ -273,10 +307,17 @@ class KASBA(BaseClusterer):
             next_center_idx = self._random_state.choice(X.shape[0], p=probabilities)
             indexes.append(next_center_idx)
 
+            # Update mask
+            mask[next_center_idx, 0] = False
+
             new_distances = pairwise_distance(
-                X, X[next_center_idx], metric=self.distance, **self._distance_params
+                X,
+                X[next_center_idx : next_center_idx + 1],
+                metric=self.distance,
+                mask=mask,
+                **self._distance_params,
             ).flatten()
-            self.init_distance_calls += len(X) * len(X[next_center_idx])
+            self.init_distance_calls += len(X) - (i + 1)
 
             closer_points = new_distances < min_distances
             min_distances[closer_points] = new_distances[closer_points]
