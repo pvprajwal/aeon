@@ -7,7 +7,6 @@ __maintainer__ = []
 from typing import Callable, Union
 
 import numpy as np
-from numpy.f2py.crackfortran import verbose
 from numpy.random import RandomState
 from sklearn.utils import check_random_state
 
@@ -34,22 +33,17 @@ class KASBA(BaseClusterer):
     def __init__(
         self,
         n_clusters: int = 8,
+        init: np.ndarray[np.float64] = None,
         distance: Union[str, Callable] = "msm",
         ba_subset_size: float = 0.5,
         initial_step_size: float = 0.05,
         final_step_size: float = 0.005,
-        window: float = 0.5,
         max_iter: int = 300,
         tol: float = 1e-6,
         verbose: bool = False,
         random_state: Optional[Union[int, RandomState]] = None,
         distance_params: Optional[dict] = None,
-        average_method: str = "lr_random_subset_ssg",
         count_distance_calls: bool = False,
-        use_mean_as_init: bool = False,
-        use_previous_cost: bool = True,
-        use_all_first_subset_ba_iteration: bool = True,
-        ba_lr_func: str = "exponential",
         decay_rate: float = 0.1,
     ):
         self.distance = distance
@@ -60,15 +54,11 @@ class KASBA(BaseClusterer):
         self.distance_params = distance_params
         self.initial_step_size = initial_step_size
         self.final_step_size = final_step_size
-        self.window = window
         self.ba_subset_size = ba_subset_size
-        self.average_method = average_method
         self.count_distance_calls = count_distance_calls
-        self.use_mean_as_init = use_mean_as_init
-        self.use_previous_cost = use_previous_cost
-        self.use_all_first_subset_ba_iteration = use_all_first_subset_ba_iteration
-        self.ba_lr_func = ba_lr_func
         self.decay_rate = decay_rate
+        self.n_clusters = n_clusters
+        self.init = init
 
         self.cluster_centers_ = None
         self.labels_ = None
@@ -83,13 +73,18 @@ class KASBA(BaseClusterer):
         self.update_distance_calls = 0
         self.assignment_distance_calls = 0
         self.total_distance_calls = 0
-        super().__init__(n_clusters)
+        super().__init__()
 
     def _fit(self, X: np.ndarray, y=None):
         self._check_params(X)
-        cluster_centres, distances_to_centres, labels = self._elastic_kmeans_plus_plus(
-            X,
-        )
+        if isinstance(self.init, tuple):
+            cluster_centres, distances_to_centres, labels = self.init
+        else:
+            cluster_centres, distances_to_centres, labels = (
+                self._elastic_kmeans_plus_plus(
+                    X,
+                )
+            )
         self.labels_, self.cluster_centers_, self.inertia_, self.n_iter_ = self._kesba(
             X,
             cluster_centres,
@@ -212,22 +207,16 @@ class KASBA(BaseClusterer):
             previous_distance_to_centre = distances_to_centres[labels == j]
             previous_cost = np.sum(previous_distance_to_centre)
             curr_centre, dist_to_centre, num_distance_calls = kasba_average(
-                X[labels == j],
-                max_iters=50,
-                method=self.average_method,
+                X=X[labels == j],
                 init_barycenter=cluster_centres[j],
-                distance=self.distance,
-                initial_step_size=self.initial_step_size,
-                final_step_size=self.final_step_size,
-                random_state=self._random_state,
-                return_distances=True,
-                count_number_distance_calls=True,
-                verbose=self.verbose,
-                ba_subset_size=self.ba_subset_size,
                 previous_cost=previous_cost,
-                previous_distance_to_centre=previous_distance_to_centre,
-                use_all_first_subset_ba_iteration=self.use_all_first_subset_ba_iteration,
-                lr_func=self.ba_lr_func,
+                distance=self.distance,
+                max_iters=50,
+                tol=self.tol,
+                verbose=self.verbose,
+                random_state=self._random_state,
+                ba_subset_size=self.ba_subset_size,
+                initial_step_size=self.initial_step_size,
                 decay_rate=self.decay_rate,
                 **self._distance_params,
             )
@@ -306,6 +295,5 @@ class KASBA(BaseClusterer):
             )
 
         self._distance_params = {
-            "window": self.window,
             **(self.distance_params or {}),
         }

@@ -8,13 +8,10 @@ from aeon.clustering.averaging._ba_utils import (
     _get_alignment_path,
     _get_init_barycenter,
 )
-from aeon.distances import distance as distance_callable
 from aeon.distances import pairwise_distance
 
-# change stopping condition so if it increase for 10% of the max_iters in a row stop rather than just once
 
-
-def _kesba_average(
+def lr_random_subset_ssg_barycenter_average(
     X: np.ndarray,
     distance: str = "dtw",
     max_iters: int = 30,
@@ -33,6 +30,8 @@ def _kesba_average(
     initial_step_size: float = 0.05,
     decay_rate: float = 0.1,
     min_step_size: float = 0.005,
+    final_step_size: float = 0.005,
+    method="lr_random_subset_ssg",
     **kwargs,
 ) -> np.ndarray:
     if len(X) <= 1:
@@ -132,7 +131,6 @@ def _kesba_average(
 
         if verbose:
             print(f"[Subset-SSG-BA] epoch {i}, cost {cost}")  # noqa: T001, T201
-
 
     if use_all_first_subset_ba_iteration:
         num_dist_computations = (i * num_ts_to_use) + X_size

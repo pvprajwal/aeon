@@ -7,12 +7,14 @@ __maintainer__ = []
 from typing import Callable, Union
 
 import numpy as np
-from numpy.f2py.crackfortran import verbose
 from numpy.random import RandomState
 from sklearn.utils import check_random_state
 
 from aeon.clustering._k_means import EmptyClusterError
-from aeon.clustering.averaging import kasba_average
+from aeon.clustering.averaging import elastic_barycenter_average
+from aeon.clustering.averaging._ba_random_subset_ssg_lr import (
+    lr_random_subset_ssg_barycenter_average,
+)
 from aeon.clustering.base import BaseClusterer
 from aeon.distances import distance as distance_func
 from aeon.distances import pairwise_distance
@@ -48,6 +50,7 @@ class KESBA(BaseClusterer):
         decay_rate: float = 0.1,
         use_ten_restarts=False,
         use_random_init=False,
+        init=None,
     ):
         self.distance = distance
         self.max_iter = max_iter
@@ -69,6 +72,8 @@ class KESBA(BaseClusterer):
         self.decay_rate = decay_rate
         self.use_ten_restarts = use_ten_restarts
         self.use_random_init = use_random_init
+        self.n_clusters = n_clusters
+        self.init = init
 
         self.cluster_centers_ = None
         self.labels_ = None
@@ -83,15 +88,21 @@ class KESBA(BaseClusterer):
         self.update_distance_calls = 0
         self.assignment_distance_calls = 0
         self.total_distance_calls = 0
-        super().__init__(n_clusters)
+        super().__init__()
 
     def _fit(self, X: np.ndarray, y=None):
         self._check_params(X)
         if self.use_ten_restarts:
             return self._fit_random_restart(X)
-        cluster_centres, distances_to_centres, labels = self._elastic_kmeans_plus_plus(
-            X,
-        )
+
+        if isinstance(self.init, tuple):
+            cluster_centres, distances_to_centres, labels = self.init
+        else:
+            cluster_centres, distances_to_centres, labels = (
+                self._elastic_kmeans_plus_plus(
+                    X,
+                )
+            )
 
         if self.verbose:
             print("Starting inertia: ", np.sum(distances_to_centres**2))
@@ -412,25 +423,27 @@ class KESBA(BaseClusterer):
                     **self._distance_params,
                 )
             else:
-                curr_centre, dist_to_centre, num_distance_calls = kasba_average(
-                    X[labels == j],
-                    max_iters=50,
-                    method=self.average_method,
-                    init_barycenter=cluster_centres[j],
-                    distance=self.distance,
-                    initial_step_size=self.initial_step_size,
-                    final_step_size=self.final_step_size,
-                    random_state=self._random_state,
-                    return_distances=True,
-                    count_number_distance_calls=True,
-                    verbose=self.verbose,
-                    ba_subset_size=self.ba_subset_size,
-                    previous_cost=previous_cost,
-                    previous_distance_to_centre=previous_distance_to_centre,
-                    use_all_first_subset_ba_iteration=self.use_all_first_subset_ba_iteration,
-                    lr_func=self.ba_lr_func,
-                    decay_rate=self.decay_rate,
-                    **self._distance_params,
+                curr_centre, dist_to_centre, num_distance_calls = (
+                    lr_random_subset_ssg_barycenter_average(
+                        X[labels == j],
+                        max_iters=50,
+                        method=self.average_method,
+                        init_barycenter=cluster_centres[j],
+                        distance=self.distance,
+                        initial_step_size=self.initial_step_size,
+                        final_step_size=self.final_step_size,
+                        random_state=self._random_state,
+                        return_distances=True,
+                        count_number_distance_calls=True,
+                        verbose=self.verbose,
+                        ba_subset_size=self.ba_subset_size,
+                        previous_cost=previous_cost,
+                        previous_distance_to_centre=previous_distance_to_centre,
+                        use_all_first_subset_ba_iteration=self.use_all_first_subset_ba_iteration,
+                        lr_func=self.ba_lr_func,
+                        decay_rate=self.decay_rate,
+                        **self._distance_params,
+                    )
                 )
             self.update_distance_calls += num_distance_calls
             cluster_centres[j] = curr_centre
