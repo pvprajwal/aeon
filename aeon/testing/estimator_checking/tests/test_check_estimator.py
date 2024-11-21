@@ -9,13 +9,13 @@ from aeon.testing.estimator_checking import check_estimator, parametrize_with_ch
 from aeon.testing.estimator_checking._estimator_checking import _get_check_estimator_ids
 from aeon.testing.mock_estimators import (
     MockClassifier,
-    MockClassifierMultiTestParams,
+    MockClassifierParams,
     MockRegressor,
     MockSegmenter,
 )
 from aeon.testing.mock_estimators._mock_anomaly_detectors import MockAnomalyDetector
 from aeon.testing.utils.deep_equals import deep_equals
-from aeon.transformations.collection import TimeSeriesScaler
+from aeon.transformations.collection import Normalizer
 
 test_classes = [
     MockClassifier,
@@ -24,8 +24,8 @@ test_classes = [
     MockSegmenter,
     MockAnomalyDetector,
     # MockMultivariateSeriesTransformer,
-    TimeSeriesScaler,
-    MockClassifierMultiTestParams,
+    Normalizer,
+    MockClassifierParams,
 ]
 test_classes = {c.__name__: c for c in test_classes}
 
@@ -33,7 +33,13 @@ test_classes = {c.__name__: c for c in test_classes}
 @parametrize_with_checks(list(test_classes.values()), use_first_parameter_set=True)
 def test_parametrize_with_checks_classes(check):
     """Test parametrize_with_checks with class input."""
-    name = _get_check_estimator_ids(check).split("=")[1].split("(")[0].split(")")[0]
+    name = (
+        _get_check_estimator_ids(check)
+        .split("=")[1]
+        .split(",")[0]
+        .split("(")[0]
+        .split(")")[0]
+    )
     assert callable(check)
     dict_before = test_classes[name].__dict__.copy()
     dict_before.pop("__slotnames__", None)
@@ -51,7 +57,13 @@ test_instances = {c.__class__.__name__: c for c in test_instances}
 @parametrize_with_checks(list(test_instances.values()), use_first_parameter_set=True)
 def test_parametrize_with_checks_instances(check):
     """Test parametrize_with_checks with estimator instance input."""
-    name = _get_check_estimator_ids(check).split("=")[1].split("(")[0].split(")")[0]
+    name = (
+        _get_check_estimator_ids(check)
+        .split("=")[1]
+        .split(",")[0]
+        .split("(")[0]
+        .split(")")[0]
+    )
     assert callable(check)
     dict_before = test_instances[name].__dict__.copy()
     check()
