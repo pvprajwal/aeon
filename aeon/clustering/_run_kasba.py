@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.metrics import adjusted_rand_score
+
 from aeon.clustering import KASBA, KESBA
 from aeon.datasets import load_acsf1, load_gunpoint
 from aeon.distances import pairwise_distance

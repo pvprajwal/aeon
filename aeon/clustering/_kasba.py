@@ -185,7 +185,9 @@ class KASBA(BaseClusterer):
             metric=self.distance,
             **self._distance_params,
         )
-        self.assignment_distance_calls += (len(cluster_centres) * len(cluster_centres)) - self.n_clusters
+        self.assignment_distance_calls += (
+            len(cluster_centres) * len(cluster_centres)
+        ) - self.n_clusters
         for i in range(X.shape[0]):
             min_dist = distances_to_centres[i]
             closest = labels[i]

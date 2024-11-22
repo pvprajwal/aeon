@@ -1,16 +1,20 @@
-from numba import njit
-from typing import Callable, Union, Optional
+from typing import Callable, Optional, Union
+
 import numpy as np
+from numba import njit
 from numpy.random import RandomState
 from sklearn.utils import check_random_state
 
-from aeon.distances.elastic._msm import _msm_distance
 from aeon.clustering._k_means import EmptyClusterError
+from aeon.clustering._kasba_utils import (
+    _msm_from_multiple_to_multiple_distance,
+    _msm_kesba_average,
+    _msm_pairwise_distance,
+)
 from aeon.clustering.base import BaseClusterer
 from aeon.distances import pairwise_distance
-from aeon.clustering._kasba_utils import _msm_kesba_average, _msm_pairwise_distance, \
-    _msm_from_multiple_to_multiple_distance
 from aeon.distances.elastic._bounding_matrix import create_bounding_matrix
+from aeon.distances.elastic._msm import _msm_distance
 
 
 class KASBA_NUMBA(BaseClusterer):
@@ -74,10 +78,8 @@ class KASBA_NUMBA(BaseClusterer):
     def _fit(self, X: np.ndarray, y=None):
         self._check_params(X)
 
-        cluster_centres, distances_to_centres, labels = (
-            self._elastic_kmeans_plus_plus(
-                X,
-            )
+        cluster_centres, distances_to_centres, labels = self._elastic_kmeans_plus_plus(
+            X,
         )
 
         self.labels_, self.cluster_centers_, self.inertia_, self.n_iter_ = _numba_kasba(
@@ -126,8 +128,8 @@ class KASBA_NUMBA(BaseClusterer):
         return pairwise_matrix.argmin(axis=1)
 
     def _elastic_kmeans_plus_plus(
-            self,
-            X,
+        self,
+        X,
     ):
         initial_center_idx = self._random_state.randint(X.shape[0])
         indexes = [initial_center_idx]
@@ -183,27 +185,29 @@ class KASBA_NUMBA(BaseClusterer):
 
 @njit(cache=True, fastmath=True)
 def _numba_kasba(
-        X: np.ndarray,
-        cluster_centres: np.ndarray,
-        distances_to_centres: np.ndarray,
-        labels: np.ndarray,
-        n_clusters: int,
-        window: Optional[float],
-        max_iter: int,
-        tol: float,
-        verbose: bool,
-        random_state: int,
-        c: float,
-        independent: bool,
-        decay_rate: float,
-        ba_subset_size: float,
-        initial_step_size: float,
+    X: np.ndarray,
+    cluster_centres: np.ndarray,
+    distances_to_centres: np.ndarray,
+    labels: np.ndarray,
+    n_clusters: int,
+    window: Optional[float],
+    max_iter: int,
+    tol: float,
+    verbose: bool,
+    random_state: int,
+    c: float,
+    independent: bool,
+    decay_rate: float,
+    ba_subset_size: float,
+    initial_step_size: float,
 ):
     print("Starting numba")
     np.random.seed(random_state)
 
     x_size = X.shape[2]
-    bounding_matrix = create_bounding_matrix(x_size, x_size, window=window, itakura_max_slope=None)
+    bounding_matrix = create_bounding_matrix(
+        x_size, x_size, window=window, itakura_max_slope=None
+    )
 
     inertia = np.inf
     prev_inertia = np.inf
@@ -247,7 +251,7 @@ def _numba_kasba(
             labels,
             c,
             independent,
-            bounding_matrix
+            bounding_matrix,
         )
 
         if np.array_equal(prev_labels, labels):
@@ -261,21 +265,22 @@ def _numba_kasba(
         return prev_labels, prev_cluster_centres, prev_inertia, i + 1
     return labels, cluster_centres, inertia, i + 1
 
+
 @njit(cache=True, fastmath=True)
 def _recalculate_centroids(
-        X,
-        n_clusters,
-        cluster_centres,
-        labels,
-        distances_to_centres,
-        bounding_matrix,
-        c,
-        independent,
-        tol,
-        verbose,
-        ba_subset_size,
-        initial_step_size,
-        decay_rate,
+    X,
+    n_clusters,
+    cluster_centres,
+    labels,
+    distances_to_centres,
+    bounding_matrix,
+    c,
+    independent,
+    tol,
+    verbose,
+    ba_subset_size,
+    initial_step_size,
+    decay_rate,
 ):
     for j in range(n_clusters):
         current_cluster_indices = labels == j
@@ -307,16 +312,16 @@ def _recalculate_centroids(
 
 @njit(cache=True, fastmath=True)
 def _fast_assign(
-        X,
-        n_clusters,
-        cluster_centres,
-        distances_to_centres,
-        labels,
-        is_first_iteration,
-        c,
-        independent,
-        bounding_matrix,
-        verbose
+    X,
+    n_clusters,
+    cluster_centres,
+    distances_to_centres,
+    labels,
+    is_first_iteration,
+    c,
+    independent,
+    bounding_matrix,
+    verbose,
 ):
     distances_between_centres = _msm_pairwise_distance(
         cluster_centres,
@@ -353,16 +358,17 @@ def _fast_assign(
         print(f"{inertia} -->")
     return labels, distances_to_centres, inertia
 
+
 @njit(cache=True, fastmath=True)
 def _handle_empty_cluster(
-        X: np.ndarray,
-        n_clusters: int,
-        cluster_centres: np.ndarray,
-        distances_to_centres: np.ndarray,
-        labels: np.ndarray,
-        c,
-        independent,
-        bounding_matrix: np.ndarray,
+    X: np.ndarray,
+    n_clusters: int,
+    cluster_centres: np.ndarray,
+    distances_to_centres: np.ndarray,
+    labels: np.ndarray,
+    c,
+    independent,
+    bounding_matrix: np.ndarray,
 ):
     valid_clusters = np.arange(n_clusters)
     current_clusters = np.unique(labels)
@@ -376,7 +382,11 @@ def _handle_empty_cluster(
             index_furthest_from_centre = distances_to_centres.argmax()
             cluster_centres[current_empty_cluster_index] = X[index_furthest_from_centre]
             curr_pw = _msm_from_multiple_to_multiple_distance(
-                X, cluster_centres, c=c, independent=independent, bounding_matrix=bounding_matrix
+                X,
+                cluster_centres,
+                c=c,
+                independent=independent,
+                bounding_matrix=bounding_matrix,
             )
 
             distances_to_centres = np.zeros(len(distances_to_centres))
@@ -396,11 +406,14 @@ def _handle_empty_cluster(
 
     return labels, cluster_centres, distances_to_centres
 
+
 if __name__ == "__main__":
-    from aeon.datasets import load_acsf1, load_gunpoint
-    from aeon.clustering import KASBA
-    from sklearn.metrics import adjusted_rand_score
     import time
+
+    from sklearn.metrics import adjusted_rand_score
+
+    from aeon.clustering import KASBA
+    from aeon.datasets import load_acsf1, load_gunpoint
 
     X_train, y_train = load_gunpoint(split="train")
     # X_train, y_train = load_acsf1(split="train")

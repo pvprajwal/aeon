@@ -2,7 +2,12 @@ import numpy as np
 from numba import njit
 
 from aeon.distances.elastic._alignment_paths import compute_min_return_path
-from aeon.distances.elastic._msm import _msm_distance, _msm_independent_cost_matrix, _msm_dependent_cost_matrix
+from aeon.distances.elastic._msm import (
+    _msm_dependent_cost_matrix,
+    _msm_distance,
+    _msm_independent_cost_matrix,
+)
+
 
 @njit(cache=True, fastmath=True)
 def _msm_pairwise_distance(
@@ -25,11 +30,11 @@ def _msm_pairwise_distance(
 
 @njit(cache=True, fastmath=True)
 def _msm_from_multiple_to_multiple_distance(
-        x: np.ndarray,
-        y: np.ndarray,
-        c: float,
-        independent: bool,
-        bounding_matrix: np.ndarray,
+    x: np.ndarray,
+    y: np.ndarray,
+    c: float,
+    independent: bool,
+    bounding_matrix: np.ndarray,
 ) -> np.ndarray:
     n_cases = len(x)
     m_cases = len(y)
@@ -44,11 +49,11 @@ def _msm_from_multiple_to_multiple_distance(
 
 @njit(cache=True, fastmath=True)
 def _msm_from_single_to_multiple_distance(
-        x: np.ndarray,
-        y: np.ndarray,
-        c: float,
-        independent: bool,
-        bounding_matrix: np.ndarray,
+    x: np.ndarray,
+    y: np.ndarray,
+    c: float,
+    independent: bool,
+    bounding_matrix: np.ndarray,
 ) -> np.ndarray:
     n_cases = len(x)
     distances = np.zeros(n_cases)
@@ -58,20 +63,21 @@ def _msm_from_single_to_multiple_distance(
         distances[i] = _msm_distance(x1, y, bounding_matrix, independent, c)
     return distances
 
+
 @njit(cache=True, fastmath=True)
 def _msm_kesba_average(
-        X: np.ndarray,
-        init_barycenter: np.ndarray,
-        previous_cost: float,
-        bounding_matrix: np.ndarray,
-        c: float = 1.0,
-        independent: bool = True,
-        max_iters: int = 50,
-        tol=1e-5,
-        verbose: bool = False,
-        ba_subset_size: float = 0.5,
-        initial_step_size: float = 0.05,
-        decay_rate: float = 0.1,
+    X: np.ndarray,
+    init_barycenter: np.ndarray,
+    previous_cost: float,
+    bounding_matrix: np.ndarray,
+    c: float = 1.0,
+    independent: bool = True,
+    max_iters: int = 50,
+    tol=1e-5,
+    verbose: bool = False,
+    ba_subset_size: float = 0.5,
+    initial_step_size: float = 0.05,
+    decay_rate: float = 0.1,
 ) -> tuple[np.ndarray, np.ndarray]:
 
     X_size = X.shape[0]
@@ -100,7 +106,9 @@ def _msm_kesba_average(
             c=c,
         )
 
-        pw_dist = _msm_from_single_to_multiple_distance(X, barycenter, c, independent, bounding_matrix)
+        pw_dist = _msm_from_single_to_multiple_distance(
+            X, barycenter, c, independent, bounding_matrix
+        )
         cost = np.sum(pw_dist)
         distances_to_centre = pw_dist.flatten()
 
@@ -124,15 +132,16 @@ def _msm_kesba_average(
 
     return barycenter, distances_to_centre
 
+
 @njit(cache=True, fastmath=True)
 def _kasba_refine_one_iter(
-        barycenter: np.ndarray,
-        X: np.ndarray,
-        shuffled_indices: np.ndarray,
-        current_step_size,
-        bounding_matrix: np.ndarray,
-        independent: bool = True,
-        c: float = 1.0,
+    barycenter: np.ndarray,
+    X: np.ndarray,
+    shuffled_indices: np.ndarray,
+    current_step_size,
+    bounding_matrix: np.ndarray,
+    independent: bool = True,
+    c: float = 1.0,
 ):
 
     X_size, X_dims, X_timepoints = X.shape
