@@ -101,15 +101,17 @@ class KASBA(BaseClusterer):
             + self.update_distance_calls
             + self.assignment_distance_calls
         )
-        print("+++++++++ Final output +++++++++")
-        print("Final inertia: ", self.inertia_)
-        print("Final number of iterations: ", self.n_iter_)
-        print("+++++++++ Number of distance calls +++++++++")
-        print("Init distance calls: ", self.init_distance_calls)
-        print("Empty cluster distance calls: ", self.empty_cluster_distance_calls)
-        print("Update distance calls: ", self.update_distance_calls)
-        print("Assignment distance calls: ", self.assignment_distance_calls)
-        print("Total distance calls: ", self.total_distance_calls)
+
+        if self.verbose:
+            print("+++++++++ Final output +++++++++")
+            print("Final inertia: ", self.inertia_)
+            print("Final number of iterations: ", self.n_iter_)
+            print("+++++++++ Number of distance calls +++++++++")
+            print("Init distance calls: ", self.init_distance_calls)
+            print("Empty cluster distance calls: ", self.empty_cluster_distance_calls)
+            print("Update distance calls: ", self.update_distance_calls)
+            print("Assignment distance calls: ", self.assignment_distance_calls)
+            print("Total distance calls: ", self.total_distance_calls)
 
         return self
 
@@ -306,8 +308,6 @@ class KASBA(BaseClusterer):
             probabilities = min_distances / min_distances.sum()
             next_center_idx = self._random_state.choice(X.shape[0], p=probabilities)
             indexes.append(next_center_idx)
-
-            # Update mask
             mask[next_center_idx, 0] = False
 
             new_distances = pairwise_distance(
