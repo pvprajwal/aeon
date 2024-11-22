@@ -37,7 +37,6 @@ class KASBA(BaseClusterer):
         distance: Union[str, Callable] = "msm",
         ba_subset_size: float = 0.5,
         initial_step_size: float = 0.05,
-        final_step_size: float = 0.005,
         max_iter: int = 300,
         tol: float = 1e-6,
         verbose: bool = False,
@@ -53,7 +52,6 @@ class KASBA(BaseClusterer):
         self.random_state = random_state
         self.distance_params = distance_params
         self.initial_step_size = initial_step_size
-        self.final_step_size = final_step_size
         self.ba_subset_size = ba_subset_size
         self.count_distance_calls = count_distance_calls
         self.decay_rate = decay_rate
@@ -184,11 +182,10 @@ class KASBA(BaseClusterer):
     ):
         distances_between_centres = pairwise_distance(
             cluster_centres,
-            cluster_centres,
             metric=self.distance,
             **self._distance_params,
         )
-        self.assignment_distance_calls += len(cluster_centres) * len(cluster_centres)
+        self.assignment_distance_calls += (len(cluster_centres) * len(cluster_centres)) - self.n_clusters
         for i in range(X.shape[0]):
             min_dist = distances_to_centres[i]
             closest = labels[i]
@@ -229,11 +226,10 @@ class KASBA(BaseClusterer):
         for j in range(self.n_clusters):
             # Check if the labels for cluster j have changed
             current_cluster_indices = labels == j
-            previous_cluster_indices = prev_labels == j
 
             # If the labels havent changed no need to recalculate the centroid
             # if not np.array_equal(current_cluster_indices, previous_cluster_indices):
-            previous_distance_to_centre = distances_to_centres[labels == j]
+            previous_distance_to_centre = distances_to_centres[current_cluster_indices]
             previous_cost = np.sum(previous_distance_to_centre)
             curr_centre, dist_to_centre, num_distance_calls = kasba_average(
                 X=X[current_cluster_indices],

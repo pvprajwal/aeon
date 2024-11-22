@@ -1,8 +1,5 @@
 import numpy as np
 from sklearn.metrics import adjusted_rand_score
-from statsmodels.tsa.statespace.simulation_smoother import check_random_state
-from sympy.core.sympify import kernS
-
 from aeon.clustering import KASBA, KESBA
 from aeon.datasets import load_acsf1, load_gunpoint
 from aeon.distances import pairwise_distance
@@ -27,12 +24,9 @@ if __name__ == "__main__":
     n_clusters = len(set(list(y_train)))
     verbose = True
 
-    kasba_clust = KESBA(
+    kasba_clust = KASBA(
         n_clusters=n_clusters,
         random_state=1,
-        skip_barycentre_if_labels_no_change=True,
-        use_new_kmeans_plus=True,
-        use_check_centres_change_assignment=True,
     )
 
     kesba_clust = KESBA(
