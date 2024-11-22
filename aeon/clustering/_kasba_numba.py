@@ -33,7 +33,6 @@ class KASBA_NUMBA(BaseClusterer):
     def __init__(
         self,
         n_clusters: int = 8,
-        init: np.ndarray[np.float64] = None,
         distance: Union[str, Callable] = "msm",
         ba_subset_size: float = 0.5,
         initial_step_size: float = 0.05,
@@ -57,7 +56,6 @@ class KASBA_NUMBA(BaseClusterer):
         self.count_distance_calls = count_distance_calls
         self.decay_rate = decay_rate
         self.n_clusters = n_clusters
-        self.init = init
         self.window = window
 
         self.cluster_centers_ = None
@@ -168,6 +166,36 @@ class KASBA_NUMBA(BaseClusterer):
 
         centers = X[indexes]
         return centers, min_distances, labels
+
+    def _create_numba_caches(self, X):
+        self._check_params(X)
+        size_of_subset = min(len(X), self.n_clusters * 2)
+        subset = X[:size_of_subset]
+
+        cluster_centres, distances_to_centres, labels = self._elastic_kmeans_plus_plus(
+            subset,
+        )
+
+        _numba_kasba(
+            subset,
+            n_clusters=self.n_clusters,
+            cluster_centres=cluster_centres,
+            distances_to_centres=distances_to_centres,
+            labels=labels,
+            max_iter=self.max_iter,
+            tol=self.tol,
+            verbose=self.verbose,
+            random_state=self.random_state,
+            c=1.0,
+            independent=True,
+            decay_rate=self.decay_rate,
+            window=self.window,
+            ba_subset_size=self.ba_subset_size,
+            initial_step_size=self.initial_step_size,
+        )
+
+
+
 
     def _check_params(self, X: np.ndarray) -> None:
         self._random_state = check_random_state(self.random_state)
@@ -415,8 +443,8 @@ if __name__ == "__main__":
     from aeon.clustering import KASBA
     from aeon.datasets import load_acsf1, load_gunpoint
 
-    X_train, y_train = load_gunpoint(split="train")
-    # X_train, y_train = load_acsf1(split="train")
+    # X_train, y_train = load_gunpoint(split="train")
+    X_train, y_train = load_acsf1(split="train")
     n_clusters = len(set(list(y_train)))
     verbose = True
 
@@ -424,6 +452,7 @@ if __name__ == "__main__":
         n_clusters=n_clusters,
         random_state=1,
     )
+    kasba_clust._create_numba_caches(X_train)
 
     start = time.time()
     kasba_clust.fit(X_train)
