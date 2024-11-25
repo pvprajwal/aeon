@@ -43,7 +43,6 @@ class KASBA_NUMBA(BaseClusterer):
         distance_params: Optional[dict] = None,
         count_distance_calls: bool = False,
         decay_rate: float = 0.1,
-        window: Optional[float] = None,
     ):
         self.distance = distance
         self.max_iter = max_iter
@@ -56,7 +55,6 @@ class KASBA_NUMBA(BaseClusterer):
         self.count_distance_calls = count_distance_calls
         self.decay_rate = decay_rate
         self.n_clusters = n_clusters
-        self.window = window
 
         self.cluster_centers_ = None
         self.labels_ = None
@@ -90,10 +88,10 @@ class KASBA_NUMBA(BaseClusterer):
             tol=self.tol,
             verbose=self.verbose,
             random_state=self.random_state,
-            c=1.0,
-            independent=True,
+            c=self._distance_params.get("c", 1.0),
+            independent=self._distance_params.get("independent", True),
             decay_rate=self.decay_rate,
-            window=self.window,
+            window=self._distance_params.get("window", None),
             ba_subset_size=self.ba_subset_size,
             initial_step_size=self.initial_step_size,
         )
@@ -174,10 +172,10 @@ class KASBA_NUMBA(BaseClusterer):
             tol=self.tol,
             verbose=self.verbose,
             random_state=self.random_state,
-            c=1.0,
-            independent=True,
+            c=self._distance_params.get("c", 1.0),
+            independent=self._distance_params.get("independent", True),
+            window=self._distance_params.get("window", None),
             decay_rate=self.decay_rate,
-            window=self.window,
             ba_subset_size=self.ba_subset_size,
             initial_step_size=self.initial_step_size,
         )
