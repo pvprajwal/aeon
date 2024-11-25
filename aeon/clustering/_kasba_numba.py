@@ -44,6 +44,7 @@ class KASBA_NUMBA(BaseClusterer):
         count_distance_calls: bool = False,
         decay_rate: float = 0.1,
         window: Optional[float] = None,
+        debug_deterministic: bool = False,
     ):
         self.distance = distance
         self.max_iter = max_iter
@@ -57,6 +58,7 @@ class KASBA_NUMBA(BaseClusterer):
         self.decay_rate = decay_rate
         self.n_clusters = n_clusters
         self.window = window
+        self.debug_deterministic = debug_deterministic
 
         self.cluster_centers_ = None
         self.labels_ = None
@@ -76,9 +78,14 @@ class KASBA_NUMBA(BaseClusterer):
     def _fit(self, X: np.ndarray, y=None):
         self._check_params(X)
 
-        cluster_centres, distances_to_centres, labels = self._elastic_kmeans_plus_plus(
-            X,
-        )
+        if self.debug_deterministic:
+            cluster_centres, distances_to_centres, labels = self._first_debug_init(X)
+        else:
+            cluster_centres, distances_to_centres, labels = (
+                self._elastic_kmeans_plus_plus(
+                    X,
+                )
+            )
 
         self.labels_, self.cluster_centers_, self.inertia_, self.n_iter_ = _numba_kasba(
             X,
@@ -124,6 +131,20 @@ class KASBA_NUMBA(BaseClusterer):
                 **self._distance_params,
             )
         return pairwise_matrix.argmin(axis=1)
+
+    def _first_debug_init(self, X):
+        cluster_centres = X[0 : self.n_clusters]
+
+        pw_dists = pairwise_distance(
+            X,
+            cluster_centres,
+            metric=self.distance,
+            **self._distance_params,
+        )
+        min_dists = pw_dists.min(axis=1)
+        labels = pw_dists.argmin(axis=1)
+        self.init_distance_calls += len(X) * len(cluster_centres)
+        return cluster_centres, min_dists, labels
 
     def _elastic_kmeans_plus_plus(
         self,
@@ -194,9 +215,6 @@ class KASBA_NUMBA(BaseClusterer):
             initial_step_size=self.initial_step_size,
         )
 
-
-
-
     def _check_params(self, X: np.ndarray) -> None:
         self._random_state = check_random_state(self.random_state)
 
@@ -229,7 +247,6 @@ def _numba_kasba(
     ba_subset_size: float,
     initial_step_size: float,
 ):
-    print("Starting numba")
     np.random.seed(random_state)
 
     x_size = X.shape[2]

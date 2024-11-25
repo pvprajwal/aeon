@@ -190,7 +190,6 @@ def elastic_barycenter_average(
             lr_func=lr_func,
             initial_step_size=initial_step_size,
             decay_rate=decay_rate,
-            min_step_size=final_step_size,
             **kwargs,
         )
     elif method == "soft_dba":

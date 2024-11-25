@@ -146,22 +146,24 @@ def _kasba_refine_one_iter(
 
     X_size, X_dims, X_timepoints = X.shape
 
+    barycenter_copy = np.copy(barycenter)
+
     for i in shuffled_indices:
         curr_ts = X[i]
         if independent:
             cost_matrix = _msm_independent_cost_matrix(
-                curr_ts, barycenter, bounding_matrix, c=c
+                curr_ts, barycenter_copy, bounding_matrix, c=c
             )
         else:
             cost_matrix = _msm_dependent_cost_matrix(
-                curr_ts, barycenter, bounding_matrix, c=c
+                curr_ts, barycenter_copy, bounding_matrix, c=c
             )
 
         curr_alignment = compute_min_return_path(cost_matrix)
 
         new_ba = np.zeros((X_dims, X_timepoints))
         for j, k in curr_alignment:
-            new_ba[:, k] += barycenter[:, k] - curr_ts[:, j]
+            new_ba[:, k] += barycenter_copy[:, k] - curr_ts[:, j]
 
-        barycenter -= (2.0 * current_step_size) * new_ba
-    return barycenter
+        barycenter_copy -= (2.0 * current_step_size) * new_ba
+    return barycenter_copy

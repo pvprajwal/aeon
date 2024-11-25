@@ -34,7 +34,7 @@ class KESBA(BaseClusterer):
         ba_subset_size: float = 0.5,
         initial_step_size: float = 0.05,
         final_step_size: float = 0.005,
-        window: float = 0.5,
+        window: float = 1.0,
         max_iter: int = 300,
         tol: float = 1e-6,
         verbose: bool = False,
@@ -101,28 +101,28 @@ class KESBA(BaseClusterer):
         if self.use_ten_restarts:
             return self._fit_random_restart(X)
 
-        if isinstance(self.init, tuple):
-            cluster_centres, distances_to_centres, labels = (
-                self.init[0].copy(),
-                self.init[1].copy(),
-                self.init[2].copy(),
-            )
+        if self.init == "first":
+            cluster_centres, distances_to_centres, labels = self._first_debug_init(X)
         else:
-            if self.use_new_kmeans_plus:
+            if isinstance(self.init, tuple):
                 cluster_centres, distances_to_centres, labels = (
-                    self._elastic_kmeans_plus_plus_new(
-                        X,
-                    )
+                    self.init[0].copy(),
+                    self.init[1].copy(),
+                    self.init[2].copy(),
                 )
             else:
-                cluster_centres, distances_to_centres, labels = (
-                    self._elastic_kmeans_plus_plus(
-                        X,
+                if self.use_new_kmeans_plus:
+                    cluster_centres, distances_to_centres, labels = (
+                        self._elastic_kmeans_plus_plus_new(
+                            X,
+                        )
                     )
-                )
-
-        if self.verbose:
-            print("Starting inertia: ", np.sum(distances_to_centres**2))
+                else:
+                    cluster_centres, distances_to_centres, labels = (
+                        self._elastic_kmeans_plus_plus(
+                            X,
+                        )
+                    )
 
         if self.max_iter == 0:
             self.labels_ = labels
@@ -154,16 +154,16 @@ class KESBA(BaseClusterer):
             + self.update_distance_calls
             + self.assignment_distance_calls
         )
-        # if self.verbose:
-        print("+++++++++ Final output +++++++++")
-        print("Final inertia: ", self.inertia_)
-        print("Final number of iterations: ", self.n_iter_)
-        print("+++++++++ Number of distance calls +++++++++")
-        print("Init distance calls: ", self.init_distance_calls)
-        print("Empty cluster distance calls: ", self.empty_cluster_distance_calls)
-        print("Update distance calls: ", self.update_distance_calls)
-        print("Assignment distance calls: ", self.assignment_distance_calls)
-        print("Total distance calls: ", self.total_distance_calls)
+        if self.verbose:
+            print("+++++++++ Final output +++++++++")
+            print("Final inertia: ", self.inertia_)
+            print("Final number of iterations: ", self.n_iter_)
+            print("+++++++++ Number of distance calls +++++++++")
+            print("Init distance calls: ", self.init_distance_calls)
+            print("Empty cluster distance calls: ", self.empty_cluster_distance_calls)
+            print("Update distance calls: ", self.update_distance_calls)
+            print("Assignment distance calls: ", self.assignment_distance_calls)
+            print("Total distance calls: ", self.total_distance_calls)
 
     def _fit_random_restart(self, X):
         best_centres = None
@@ -184,10 +184,6 @@ class KESBA(BaseClusterer):
                         X,
                     )
                 )
-
-            if self.verbose:
-                print("Starting inertia: ", np.sum(distances_to_centres**2))
-
             labels, cluster_centers, inertia, n_iter = self._kesba(
                 X,
                 cluster_centres,
@@ -250,27 +246,19 @@ class KESBA(BaseClusterer):
         inertia = np.inf
         prev_inertia = np.inf
         prev_labels = None
-        prev_cluster_centres = None
-        prev_distances_to_centres = None
         for i in range(self.max_iter):
 
             cluster_centres, distances_to_centres = self._kesba_update(
                 X, cluster_centres, labels, distances_to_centres, prev_labels
             )
 
-            labels, distances_to_centres, inertia, prev_distances_to_centres = (
-                self._kesba_assignment(
-                    X,
-                    cluster_centres,
-                    distances_to_centres,
-                    labels,
-                    i == 0,
-                    prev_cluster_centres,
-                    prev_distances_to_centres,
-                )
+            labels, distances_to_centres, inertia = self._kesba_assignment(
+                X,
+                cluster_centres,
+                distances_to_centres,
+                labels,
+                i == 0,
             )
-            if not self.use_check_centres_change_assignment:
-                prev_distances_to_centres = None
 
             labels, cluster_centres, distances_to_centres = self._handle_empty_cluster(
                 X,
@@ -354,27 +342,15 @@ class KESBA(BaseClusterer):
         distances_to_centres,
         labels,
         is_first_iteration,
-        prev_cluster_centres,
-        prev_distances_to_centres=None,
     ):
         distances_between_centres = pairwise_distance(
             cluster_centres,
-            # cluster_centres,
             metric=self.distance,
             **self._distance_params,
         )
         self.assignment_distance_calls += (
             len(cluster_centres) * len(cluster_centres)
         ) - self.n_clusters
-
-        centres_same = np.full((self.n_clusters), False)
-        for i in range(self.n_clusters):
-            if not is_first_iteration and np.array_equal(
-                cluster_centres[i], prev_cluster_centres[i]
-            ):
-                centres_same[i] = True
-
-        distances_to_all_centres = np.zeros((X.shape[0], self.n_clusters))
 
         for i in range(X.shape[0]):
             min_dist = distances_to_centres[i]
@@ -385,17 +361,14 @@ class KESBA(BaseClusterer):
                 bound = distances_between_centres[j, closest] / 2.0
                 if min_dist < bound:
                     continue
-                if centres_same[j] and prev_distances_to_centres is not None:
-                    dist = prev_distances_to_centres[i, j]
-                else:
-                    dist = distance_func(
-                        X[i],
-                        cluster_centres[j],
-                        metric=self.distance,
-                        **self._distance_params,
-                    )
-                    self.assignment_distance_calls += 1
-                distances_to_all_centres[i, j] = dist
+
+                dist = distance_func(
+                    X[i],
+                    cluster_centres[j],
+                    metric=self.distance,
+                    **self._distance_params,
+                )
+                self.assignment_distance_calls += 1
                 if dist < min_dist:
                     min_dist = dist
                     closest = j
@@ -406,7 +379,7 @@ class KESBA(BaseClusterer):
         inertia = np.sum(distances_to_centres**2)
         if self.verbose:
             print(f"{inertia:.5f}", end=" --> ")
-        return labels, distances_to_centres, inertia, distances_to_all_centres
+        return labels, distances_to_centres, inertia
 
     def _kesba_lloyds_assignment(
         self,
@@ -555,6 +528,20 @@ class KESBA(BaseClusterer):
                 raise EmptyClusterError
 
         return labels, cluster_centres, distances_to_centres
+
+    def _first_debug_init(self, X):
+        cluster_centres = X[0 : self.n_clusters]
+
+        pw_dists = pairwise_distance(
+            X,
+            cluster_centres,
+            metric=self.distance,
+            **self._distance_params,
+        )
+        min_dists = pw_dists.min(axis=1)
+        labels = pw_dists.argmin(axis=1)
+        self.init_distance_calls += len(X) * len(cluster_centres)
+        return cluster_centres, min_dists, labels
 
     def _random_init(self, X):
         cluster_centres = X[

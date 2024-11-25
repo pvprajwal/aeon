@@ -29,9 +29,6 @@ def lr_random_subset_ssg_barycenter_average(
     lr_func: str = "iterative",
     initial_step_size: float = 0.05,
     decay_rate: float = 0.1,
-    min_step_size: float = 0.005,
-    final_step_size: float = 0.005,
-    method="lr_random_subset_ssg",
     **kwargs,
 ) -> np.ndarray:
     if len(X) <= 1:
@@ -115,12 +112,10 @@ def lr_random_subset_ssg_barycenter_average(
         # Cost is the sum of distance to the centre
         if abs(cost_prev - cost) < tol:
             if cost_prev < cost:
-                cost = cost_prev
                 barycenter = prev_barycenter
                 distances_to_centre = prev_distances_to_centre
             break
         elif cost_prev < cost:
-            cost = cost_prev
             barycenter = prev_barycenter
             distances_to_centre = prev_distances_to_centre
             break

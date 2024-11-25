@@ -11,6 +11,7 @@ def kasba_average(
     X: np.ndarray,
     init_barycenter: np.ndarray,
     previous_cost: float,
+    previous_distance_to_centre: np.ndarray,
     distance: str = "msm",
     max_iters: int = 50,
     tol=1e-5,
@@ -38,8 +39,6 @@ def kasba_average(
     prev_barycenter = np.copy(init_barycenter)
 
     distances_to_centre = np.zeros(X_size)
-    prev_distances_to_centre = np.zeros(X_size)
-
     num_ts_to_use = min(X_size, max(10, int(ba_subset_size * X_size)))
     for i in range(max_iters):
         shuffled_indices = random_state.permutation(X_size)
@@ -65,15 +64,15 @@ def kasba_average(
         if abs(previous_cost - cost) < tol:
             if previous_cost < cost:
                 barycenter = prev_barycenter
-                distances_to_centre = prev_distances_to_centre
+                distances_to_centre = previous_distance_to_centre
             break
         elif previous_cost < cost:
             barycenter = prev_barycenter
-            distances_to_centre = prev_distances_to_centre
+            distances_to_centre = previous_distance_to_centre
             break
 
         prev_barycenter = barycenter
-        prev_distances_to_centre = distances_to_centre.copy()
+        previous_distance_to_centre = distances_to_centre.copy()
         previous_cost = cost
 
         if verbose:
@@ -99,39 +98,24 @@ def _kasba_refine_one_iter(
 
     X_size, X_dims, X_timepoints = X.shape
 
+    barycenter_copy = np.copy(barycenter)
+
     for i in shuffled_indices:
         curr_ts = X[i]
         if distance == "twe":
             curr_alignment, curr_cost = twe_alignment_path(
-                curr_ts, barycenter, nu=nu, lmbda=lmbda
+                curr_ts, barycenter_copy, nu=nu, lmbda=lmbda
             )
         elif distance == "msm":
             curr_alignment, curr_cost = msm_alignment_path(
-                curr_ts, barycenter, independent=independent, c=c
+                curr_ts, barycenter_copy, independent=independent, c=c
             )
         else:
             raise ValueError(f"Invalid distance metric: {distance}")
 
         new_ba = np.zeros((X_dims, X_timepoints))
         for j, k in curr_alignment:
-            new_ba[:, k] += barycenter[:, k] - curr_ts[:, j]
+            new_ba[:, k] += barycenter_copy[:, k] - curr_ts[:, j]
 
-        barycenter -= (2.0 * current_step_size) * new_ba
-    return barycenter
-
-
-if __name__ == "__main__":
-    from aeon.clustering.averaging import kasba_average
-    from aeon.testing.data_generation import make_example_3d_numpy
-
-    X_train = make_example_3d_numpy(20, 2, 10, random_state=1, return_y=False)
-    distance = "dtw"
-
-    holdit_ts = kasba_average(
-        X_train,
-        distance=distance,
-        window=0.2,
-        independent=False,
-        method="holdit_stopping",
-        holdit_num_ts_to_use_percentage=0.8,
-    )
+        barycenter_copy -= (2.0 * current_step_size) * new_ba
+    return barycenter_copy

@@ -24,6 +24,7 @@ if __name__ == "__main__":
     X_train, y_train = load_acsf1(split="train")
     n_clusters = len(set(list(y_train)))
     verbose = True
+    debug_deterministic = True
 
     kasba_clust = KASBA(
         n_clusters=n_clusters,
@@ -35,10 +36,17 @@ if __name__ == "__main__":
         random_state=1,
     )
 
-    print("=========== KASBA =========")
+    kasba_numba_clust = KASBA(
+        n_clusters=n_clusters,
+        random_state=1,
+    )
+
+    print("\n=========== KASBA =========")
     kasba_labels = kasba_clust.fit_predict(X_train)
-    print("=========== KESBA =========")
+    print("\n=========== KESBA =========")
     kesba_labels = kesba_clust.fit_predict(X_train)
+    print("\n=========== KASBA NUMBA =========")
+    kasba_numba_labels = kasba_numba_clust.fit_predict(X_train)
 
     # print(f"Init equal {np.array_equal(kasba_clust.init[0], kesba_clust.init[0])}")
     # print(f"Init dists equal {np.array_equal(kasba_clust.init[1], kesba_clust.init[1])}")
@@ -46,5 +54,7 @@ if __name__ == "__main__":
 
     print("KESBA ARI: ", adjusted_rand_score(y_train, kesba_labels))
     print("KASBA ARI: ", adjusted_rand_score(y_train, kasba_labels))
+    print("KASBA NUMBA ARI: ", adjusted_rand_score(y_train, kasba_numba_labels))
 
     print(f"Labels match {np.array_equal(kesba_labels, kasba_labels)}")
+    print(f"Labels match {np.array_equal(kesba_labels, kasba_numba_labels)}")
