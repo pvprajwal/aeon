@@ -129,24 +129,7 @@ def _msm_kesba_average(
             previous_distance_to_centre = distances_to_centre.copy()
             previous_cost = cost
 
-            if verbose:
-                print(
-                    f"[Subset-SSG-BA] epoch {i}, cost {f2s(cost, 5)}"
-                )  # noqa: T001, T201
-
     return barycenter, distances_to_centre
-
-
-@njit(cache=True, fastmath=True)
-def f2s(f, precision=2):
-    if np.isnan(f):
-        return "NaN"
-    s = str(int(np.floor(f))) + "."
-    digits = f % 1
-    for _ in range(precision):
-        digits *= 10
-        s += str(int(np.floor(digits)))
-    return s
 
 
 @njit(cache=True, fastmath=True)

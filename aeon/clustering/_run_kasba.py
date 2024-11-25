@@ -1,11 +1,11 @@
 import numpy as np
+from numba import njit
 from sklearn.metrics import adjusted_rand_score
 
 from aeon.clustering import KASBA, KESBA
 from aeon.clustering._kasba_numba import KASBA_NUMBA
 from aeon.datasets import load_acsf1, load_gunpoint
 from aeon.distances import pairwise_distance
-from numba import njit
 
 
 @njit(nogil=True, cache=True)
