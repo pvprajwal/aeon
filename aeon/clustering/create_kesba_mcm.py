@@ -1,7 +1,7 @@
 from aeon.visualisation.results import create_multi_comparison_matrix
 
 if __name__ == "__main__":
-    experiment_name = "kasba-numba"
+    experiment_name = "kasba-soft-dba"
     path_to_results = f"/Users/chrisholder/Documents/Research/SOTON/clustering-results/experiments/normalised/test-train-split/{experiment_name}/CLAcc/clacc_mean.csv"
 
     create_multi_comparison_matrix(
@@ -14,5 +14,3 @@ if __name__ == "__main__":
         show_symetry=False,
         precision=3,
     )
-
-    pass
