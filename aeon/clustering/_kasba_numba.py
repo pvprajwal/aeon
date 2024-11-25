@@ -41,7 +41,6 @@ class KASBA_NUMBA(BaseClusterer):
         verbose: bool = False,
         random_state: Optional[Union[int, RandomState]] = None,
         distance_params: Optional[dict] = None,
-        count_distance_calls: bool = False,
         decay_rate: float = 0.1,
     ):
         self.distance = distance
@@ -52,7 +51,6 @@ class KASBA_NUMBA(BaseClusterer):
         self.distance_params = distance_params
         self.initial_step_size = initial_step_size
         self.ba_subset_size = ba_subset_size
-        self.count_distance_calls = count_distance_calls
         self.decay_rate = decay_rate
         self.n_clusters = n_clusters
 
