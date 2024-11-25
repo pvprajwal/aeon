@@ -195,20 +195,3 @@ def _ba_one_iter_random_subset_ssg(
 
         barycenter_copy -= (2.0 * current_step_size) * new_ba
     return barycenter_copy
-
-
-if __name__ == "__main__":
-    from aeon.clustering.averaging import kasba_average
-    from aeon.testing.data_generation import make_example_3d_numpy
-
-    X_train = make_example_3d_numpy(20, 2, 10, random_state=1, return_y=False)
-    distance = "dtw"
-
-    holdit_ts = kasba_average(
-        X_train,
-        distance=distance,
-        window=0.2,
-        independent=False,
-        method="holdit_stopping",
-        holdit_num_ts_to_use_percentage=0.8,
-    )

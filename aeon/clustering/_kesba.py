@@ -101,28 +101,25 @@ class KESBA(BaseClusterer):
         if self.use_ten_restarts:
             return self._fit_random_restart(X)
 
-        if self.init == "first":
-            cluster_centres, distances_to_centres, labels = self._first_debug_init(X)
+        if isinstance(self.init, tuple):
+            cluster_centres, distances_to_centres, labels = (
+                self.init[0].copy(),
+                self.init[1].copy(),
+                self.init[2].copy(),
+            )
         else:
-            if isinstance(self.init, tuple):
+            if self.use_new_kmeans_plus:
                 cluster_centres, distances_to_centres, labels = (
-                    self.init[0].copy(),
-                    self.init[1].copy(),
-                    self.init[2].copy(),
+                    self._elastic_kmeans_plus_plus_new(
+                        X,
+                    )
                 )
             else:
-                if self.use_new_kmeans_plus:
-                    cluster_centres, distances_to_centres, labels = (
-                        self._elastic_kmeans_plus_plus_new(
-                            X,
-                        )
+                cluster_centres, distances_to_centres, labels = (
+                    self._elastic_kmeans_plus_plus(
+                        X,
                     )
-                else:
-                    cluster_centres, distances_to_centres, labels = (
-                        self._elastic_kmeans_plus_plus(
-                            X,
-                        )
-                    )
+                )
 
         if self.max_iter == 0:
             self.labels_ = labels
@@ -528,20 +525,6 @@ class KESBA(BaseClusterer):
                 raise EmptyClusterError
 
         return labels, cluster_centres, distances_to_centres
-
-    def _first_debug_init(self, X):
-        cluster_centres = X[0 : self.n_clusters]
-
-        pw_dists = pairwise_distance(
-            X,
-            cluster_centres,
-            metric=self.distance,
-            **self._distance_params,
-        )
-        min_dists = pw_dists.min(axis=1)
-        labels = pw_dists.argmin(axis=1)
-        self.init_distance_calls += len(X) * len(cluster_centres)
-        return cluster_centres, min_dists, labels
 
     def _random_init(self, X):
         cluster_centres = X[

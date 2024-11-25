@@ -44,7 +44,7 @@ class KASBA_NUMBA(BaseClusterer):
         count_distance_calls: bool = False,
         decay_rate: float = 0.1,
         window: Optional[float] = None,
-        debug_deterministic: bool = False,
+        break_on_cost_increase: bool = True,
     ):
         self.distance = distance
         self.max_iter = max_iter
@@ -58,7 +58,7 @@ class KASBA_NUMBA(BaseClusterer):
         self.decay_rate = decay_rate
         self.n_clusters = n_clusters
         self.window = window
-        self.debug_deterministic = debug_deterministic
+        self.break_on_cost_increase = break_on_cost_increase
 
         self.cluster_centers_ = None
         self.labels_ = None
@@ -78,14 +78,9 @@ class KASBA_NUMBA(BaseClusterer):
     def _fit(self, X: np.ndarray, y=None):
         self._check_params(X)
 
-        if self.debug_deterministic:
-            cluster_centres, distances_to_centres, labels = self._first_debug_init(X)
-        else:
-            cluster_centres, distances_to_centres, labels = (
-                self._elastic_kmeans_plus_plus(
-                    X,
-                )
-            )
+        cluster_centres, distances_to_centres, labels = self._elastic_kmeans_plus_plus(
+            X,
+        )
 
         self.labels_, self.cluster_centers_, self.inertia_, self.n_iter_ = _numba_kasba(
             X,
@@ -103,19 +98,8 @@ class KASBA_NUMBA(BaseClusterer):
             window=self.window,
             ba_subset_size=self.ba_subset_size,
             initial_step_size=self.initial_step_size,
+            break_on_cost_increase=self.break_on_cost_increase,
         )
-
-        if self.verbose:
-            print("+++++++++ Final output +++++++++")
-            print("Final inertia: ", self.inertia_)
-            print("Final number of iterations: ", self.n_iter_)
-            print("+++++++++ Number of distance calls +++++++++")
-            print("Init distance calls: ", self.init_distance_calls)
-            print("Empty cluster distance calls: ", self.empty_cluster_distance_calls)
-            print("Update distance calls: ", self.update_distance_calls)
-            print("Assignment distance calls: ", self.assignment_distance_calls)
-            print("Total distance calls: ", self.total_distance_calls)
-
         return self
 
     def _predict(self, X: np.ndarray, y=None) -> np.ndarray:
@@ -131,20 +115,6 @@ class KASBA_NUMBA(BaseClusterer):
                 **self._distance_params,
             )
         return pairwise_matrix.argmin(axis=1)
-
-    def _first_debug_init(self, X):
-        cluster_centres = X[0 : self.n_clusters]
-
-        pw_dists = pairwise_distance(
-            X,
-            cluster_centres,
-            metric=self.distance,
-            **self._distance_params,
-        )
-        min_dists = pw_dists.min(axis=1)
-        labels = pw_dists.argmin(axis=1)
-        self.init_distance_calls += len(X) * len(cluster_centres)
-        return cluster_centres, min_dists, labels
 
     def _elastic_kmeans_plus_plus(
         self,
@@ -246,6 +216,7 @@ def _numba_kasba(
     decay_rate: float,
     ba_subset_size: float,
     initial_step_size: float,
+    break_on_cost_increase: bool,
 ):
     np.random.seed(random_state)
 
@@ -274,6 +245,7 @@ def _numba_kasba(
             ba_subset_size=ba_subset_size,
             initial_step_size=initial_step_size,
             decay_rate=decay_rate,
+            break_on_cost_increase=break_on_cost_increase,
         )
 
         labels, distances_to_centres, inertia = _fast_assign(
@@ -326,6 +298,7 @@ def _recalculate_centroids(
     ba_subset_size,
     initial_step_size,
     decay_rate,
+    break_on_cost_increase,
 ):
     for j in range(n_clusters):
         current_cluster_indices = labels == j
@@ -340,6 +313,7 @@ def _recalculate_centroids(
                 X=X[current_cluster_indices],
                 init_barycenter=cluster_centres[j],
                 previous_cost=previous_cost,
+                previous_distance_to_centre=previous_distance_to_centre,
                 bounding_matrix=bounding_matrix,
                 c=c,
                 independent=independent,
@@ -349,6 +323,7 @@ def _recalculate_centroids(
                 ba_subset_size=ba_subset_size,
                 initial_step_size=initial_step_size,
                 decay_rate=decay_rate,
+                break_on_cost_increase=break_on_cost_increase,
             )
         cluster_centres[j] = curr_centre
         distances_to_centres[current_cluster_indices] = dist_to_centre
@@ -450,40 +425,3 @@ def _handle_empty_cluster(
                 raise EmptyClusterError
 
     return labels, cluster_centres, distances_to_centres
-
-
-if __name__ == "__main__":
-    import time
-
-    from sklearn.metrics import adjusted_rand_score
-
-    from aeon.clustering import KASBA
-    from aeon.datasets import load_acsf1, load_gunpoint
-
-    # X_train, y_train = load_gunpoint(split="train")
-    X_train, y_train = load_acsf1(split="train")
-    n_clusters = len(set(list(y_train)))
-    verbose = True
-
-    kasba_clust = KASBA_NUMBA(
-        n_clusters=n_clusters,
-        random_state=1,
-    )
-    kasba_clust._create_numba_caches(X_train)
-
-    start = time.time()
-    kasba_clust.fit(X_train)
-    end = time.time()
-    print("NUMBA KASBA time: ", end - start)
-    print(f"ARI: {adjusted_rand_score(y_train, kasba_clust.labels_)}")
-
-    kesba_clst = KASBA(
-        n_clusters=n_clusters,
-        random_state=1,
-    )
-
-    start = time.time()
-    kesba_clst.fit(X_train)
-    end = time.time()
-    print("KASBA time: ", end - start)
-    print(f"ARI: {adjusted_rand_score(y_train, kesba_clst.labels_)}")

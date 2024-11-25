@@ -76,21 +76,18 @@ class KASBA(BaseClusterer):
     def _fit(self, X: np.ndarray, y=None):
         self._check_params(X)
 
-        if self.init == "first":
-            cluster_centres, distances_to_centres, labels = self._first_debug_init(X)
+        if isinstance(self.init, tuple):
+            cluster_centres, distances_to_centres, labels = (
+                self.init[0].copy(),
+                self.init[1].copy(),
+                self.init[2].copy(),
+            )
         else:
-            if isinstance(self.init, tuple):
-                cluster_centres, distances_to_centres, labels = (
-                    self.init[0].copy(),
-                    self.init[1].copy(),
-                    self.init[2].copy(),
+            cluster_centres, distances_to_centres, labels = (
+                self._elastic_kmeans_plus_plus(
+                    X,
                 )
-            else:
-                cluster_centres, distances_to_centres, labels = (
-                    self._elastic_kmeans_plus_plus(
-                        X,
-                    )
-                )
+            )
         self.labels_, self.cluster_centers_, self.inertia_, self.n_iter_ = self._kasba(
             X,
             cluster_centres,
@@ -355,20 +352,6 @@ class KASBA(BaseClusterer):
 
         centers = X[indexes]
         return centers, min_distances, labels
-
-    def _first_debug_init(self, X):
-        cluster_centres = X[0 : self.n_clusters]
-
-        pw_dists = pairwise_distance(
-            X,
-            cluster_centres,
-            metric=self.distance,
-            **self._distance_params,
-        )
-        min_dists = pw_dists.min(axis=1)
-        labels = pw_dists.argmin(axis=1)
-        self.init_distance_calls += len(X) * len(cluster_centres)
-        return cluster_centres, min_dists, labels
 
     def _check_params(self, X: np.ndarray) -> None:
         self._random_state = check_random_state(self.random_state)

@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.metrics import adjusted_rand_score
 
 from aeon.clustering import KASBA, KESBA
+from aeon.clustering._kasba_numba import KASBA_NUMBA
 from aeon.datasets import load_acsf1, load_gunpoint
 from aeon.distances import pairwise_distance
 
@@ -23,7 +24,7 @@ if __name__ == "__main__":
     # X_train, y_train = load_gunpoint(split="train")
     X_train, y_train = load_acsf1(split="train")
     n_clusters = len(set(list(y_train)))
-    verbose = True
+    verbose = False
     debug_deterministic = True
 
     kasba_clust = KASBA(
@@ -34,11 +35,20 @@ if __name__ == "__main__":
     kesba_clust = KESBA(
         n_clusters=n_clusters,
         random_state=1,
+        verbose=verbose,
     )
 
-    kasba_numba_clust = KASBA(
+    kasba_numba_clust = KASBA_NUMBA(
         n_clusters=n_clusters,
         random_state=1,
+        verbose=verbose,
+    )
+
+    kasba_numba_clust_run_on_cost_increase = KASBA_NUMBA(
+        n_clusters=n_clusters,
+        random_state=1,
+        break_on_cost_increase=True,
+        verbose=verbose,
     )
 
     print("\n=========== KASBA =========")

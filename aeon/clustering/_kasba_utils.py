@@ -69,6 +69,7 @@ def _msm_kesba_average(
     X: np.ndarray,
     init_barycenter: np.ndarray,
     previous_cost: float,
+    previous_distance_to_centre: np.ndarray,
     bounding_matrix: np.ndarray,
     c: float = 1.0,
     independent: bool = True,
@@ -78,59 +79,75 @@ def _msm_kesba_average(
     ba_subset_size: float = 0.5,
     initial_step_size: float = 0.05,
     decay_rate: float = 0.1,
+    break_on_cost_increase: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
-
     X_size = X.shape[0]
 
     barycenter = np.copy(init_barycenter)
     prev_barycenter = np.copy(init_barycenter)
 
     distances_to_centre = np.zeros(X_size)
-    prev_distances_to_centre = np.zeros(X_size)
-
     num_ts_to_use = min(X_size, max(10, int(ba_subset_size * X_size)))
-    for i in range(max_iters):
-        shuffled_indices = np.random.permutation(X_size)
-        if i > 0:
-            shuffled_indices = shuffled_indices[:num_ts_to_use]
-
-        current_step_size = initial_step_size * np.exp(-decay_rate * i)
-
-        barycenter = _kasba_refine_one_iter(
-            barycenter=barycenter,
-            X=X,
-            shuffled_indices=shuffled_indices,
-            current_step_size=current_step_size,
-            bounding_matrix=bounding_matrix,
-            independent=independent,
-            c=c,
+    if len(X) <= 1:
+        distances_to_centre[0] = _msm_distance(
+            X[0], barycenter, bounding_matrix, independent, c
         )
+    else:
+        for i in range(max_iters):
+            shuffled_indices = np.random.permutation(X_size)
+            if i > 0:
+                shuffled_indices = shuffled_indices[:num_ts_to_use]
 
-        pw_dist = _msm_from_single_to_multiple_distance(
-            X, barycenter, c, independent, bounding_matrix
-        )
-        cost = np.sum(pw_dist)
-        distances_to_centre = pw_dist.flatten()
+            current_step_size = initial_step_size * np.exp(-decay_rate * i)
 
-        # Cost is the sum of distance to the centre
-        if abs(previous_cost - cost) < tol:
-            if previous_cost < cost:
+            barycenter = _kasba_refine_one_iter(
+                barycenter=barycenter,
+                X=X,
+                shuffled_indices=shuffled_indices,
+                current_step_size=current_step_size,
+                bounding_matrix=bounding_matrix,
+                independent=independent,
+                c=c,
+            )
+
+            pw_dist = _msm_from_single_to_multiple_distance(
+                X, barycenter, c, independent, bounding_matrix
+            )
+            cost = np.sum(pw_dist)
+            distances_to_centre = pw_dist.flatten()
+
+            if abs(previous_cost - cost) < tol:
+                if previous_cost < cost:
+                    barycenter = prev_barycenter
+                    distances_to_centre = previous_distance_to_centre
+                break
+            elif previous_cost < cost and break_on_cost_increase:
                 barycenter = prev_barycenter
-                distances_to_centre = prev_distances_to_centre
-            break
-        elif previous_cost < cost:
-            barycenter = prev_barycenter
-            distances_to_centre = prev_distances_to_centre
-            break
+                distances_to_centre = previous_distance_to_centre
+                break
 
-        prev_barycenter = barycenter
-        prev_distances_to_centre = distances_to_centre.copy()
-        previous_cost = cost
+            prev_barycenter = barycenter
+            previous_distance_to_centre = distances_to_centre.copy()
+            previous_cost = cost
 
-        if verbose:
-            print(f"[Subset-SSG-BA] epoch {i}, cost {cost}")  # noqa: T001, T201
+            if verbose:
+                print(
+                    f"[Subset-SSG-BA] epoch {i}, cost {f2s(cost, 5)}"
+                )  # noqa: T001, T201
 
     return barycenter, distances_to_centre
+
+
+@njit(cache=True, fastmath=True)
+def f2s(f, precision=2):
+    if np.isnan(f):
+        return "NaN"
+    s = str(int(np.floor(f))) + "."
+    digits = f % 1
+    for _ in range(precision):
+        digits *= 10
+        s += str(int(np.floor(digits)))
+    return s
 
 
 @njit(cache=True, fastmath=True)
