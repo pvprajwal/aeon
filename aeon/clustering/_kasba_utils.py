@@ -79,7 +79,6 @@ def _msm_kesba_average(
     ba_subset_size: float = 0.5,
     initial_step_size: float = 0.05,
     decay_rate: float = 0.1,
-    break_on_cost_increase: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     X_size = X.shape[0]
 
@@ -121,7 +120,7 @@ def _msm_kesba_average(
                     barycenter = prev_barycenter
                     distances_to_centre = previous_distance_to_centre
                 break
-            elif previous_cost < cost and break_on_cost_increase:
+            elif previous_cost < cost:
                 barycenter = prev_barycenter
                 distances_to_centre = previous_distance_to_centre
                 break

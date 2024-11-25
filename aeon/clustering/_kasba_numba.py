@@ -44,7 +44,6 @@ class KASBA_NUMBA(BaseClusterer):
         count_distance_calls: bool = False,
         decay_rate: float = 0.1,
         window: Optional[float] = None,
-        break_on_cost_increase: bool = True,
     ):
         self.distance = distance
         self.max_iter = max_iter
@@ -58,7 +57,6 @@ class KASBA_NUMBA(BaseClusterer):
         self.decay_rate = decay_rate
         self.n_clusters = n_clusters
         self.window = window
-        self.break_on_cost_increase = break_on_cost_increase
 
         self.cluster_centers_ = None
         self.labels_ = None
@@ -98,7 +96,6 @@ class KASBA_NUMBA(BaseClusterer):
             window=self.window,
             ba_subset_size=self.ba_subset_size,
             initial_step_size=self.initial_step_size,
-            break_on_cost_increase=self.break_on_cost_increase,
         )
         return self
 
@@ -173,7 +170,7 @@ class KASBA_NUMBA(BaseClusterer):
             cluster_centres=cluster_centres,
             distances_to_centres=distances_to_centres,
             labels=labels,
-            max_iter=self.max_iter,
+            max_iter=2,
             tol=self.tol,
             verbose=self.verbose,
             random_state=self.random_state,
@@ -216,7 +213,6 @@ def _numba_kasba(
     decay_rate: float,
     ba_subset_size: float,
     initial_step_size: float,
-    break_on_cost_increase: bool,
 ):
     np.random.seed(random_state)
 
@@ -245,7 +241,6 @@ def _numba_kasba(
             ba_subset_size=ba_subset_size,
             initial_step_size=initial_step_size,
             decay_rate=decay_rate,
-            break_on_cost_increase=break_on_cost_increase,
         )
 
         labels, distances_to_centres, inertia = _fast_assign(
@@ -298,7 +293,6 @@ def _recalculate_centroids(
     ba_subset_size,
     initial_step_size,
     decay_rate,
-    break_on_cost_increase,
 ):
     for j in range(n_clusters):
         current_cluster_indices = labels == j
@@ -323,7 +317,6 @@ def _recalculate_centroids(
                 ba_subset_size=ba_subset_size,
                 initial_step_size=initial_step_size,
                 decay_rate=decay_rate,
-                break_on_cost_increase=break_on_cost_increase,
             )
         cluster_centres[j] = curr_centre
         distances_to_centres[current_cluster_indices] = dist_to_centre

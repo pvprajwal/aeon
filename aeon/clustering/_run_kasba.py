@@ -5,8 +5,10 @@ from aeon.clustering import KASBA, KESBA
 from aeon.clustering._kasba_numba import KASBA_NUMBA
 from aeon.datasets import load_acsf1, load_gunpoint
 from aeon.distances import pairwise_distance
+from numba import njit
 
 
+@njit(nogil=True, cache=True)
 def _first_init(X, n_clusters):
     cluster_centres = X[0:n_clusters]
     pw_dists = pairwise_distance(
@@ -43,13 +45,8 @@ if __name__ == "__main__":
         random_state=1,
         verbose=verbose,
     )
-
-    kasba_numba_clust_run_on_cost_increase = KASBA_NUMBA(
-        n_clusters=n_clusters,
-        random_state=1,
-        break_on_cost_increase=True,
-        verbose=verbose,
-    )
+    print("Starting")
+    kasba_numba_clust._create_numba_caches(X_train)
 
     print("\n=========== KASBA =========")
     kasba_labels = kasba_clust.fit_predict(X_train)
@@ -57,10 +54,6 @@ if __name__ == "__main__":
     kesba_labels = kesba_clust.fit_predict(X_train)
     print("\n=========== KASBA NUMBA =========")
     kasba_numba_labels = kasba_numba_clust.fit_predict(X_train)
-
-    # print(f"Init equal {np.array_equal(kasba_clust.init[0], kesba_clust.init[0])}")
-    # print(f"Init dists equal {np.array_equal(kasba_clust.init[1], kesba_clust.init[1])}")
-    # print(f"Init labels equal {np.array_equal(kasba_clust.init[2], kesba_clust.init[2])}")
 
     print("KESBA ARI: ", adjusted_rand_score(y_train, kesba_labels))
     print("KASBA ARI: ", adjusted_rand_score(y_train, kasba_labels))
