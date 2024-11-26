@@ -9,7 +9,7 @@ if __name__ == "__main__":
         dataset_column="Estimators:",
         output_dir="./",
         pdf_savename="test",
-        font_size=22,
+        font_size=21,
         pvalue_threshold=0.05,
         show_symetry=False,
         precision=3,
