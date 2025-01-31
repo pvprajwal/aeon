@@ -77,3 +77,23 @@ def test_knn_bounding_matrix(distance_key):
         if pred[j] == y_test[j]:
             correct = correct + 1
     assert correct == expected_correct_window[distance_key]
+
+
+def test_knn_kneighbors():
+    distance_key = "dtw"
+    X_train, y_train = load_unit_test(split="train")
+    X_test, y_test = load_unit_test(split="test")
+
+    distance_callable = get_distance_function(distance_key)
+
+    knn = KNeighborsTimeSeriesClassifier(
+        distance=distance_callable, distance_params={"window": 0.5}
+    )
+    knn.fit(X_train, y_train)
+    dists, ind = knn.kneighbors(X_test)
+    pred = y_test[ind.flatten()]
+    correct = 0
+    for j in range(0, len(pred)):
+        if pred[j] == y_test[j]:
+            correct = correct + 1
+    assert correct == expected_correct_window[distance_key]

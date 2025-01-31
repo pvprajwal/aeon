@@ -5,6 +5,7 @@ The class can take callables or uses string references to utilise the numba base
 distances in aeon.distances.
 """
 
+import numbers
 from typing import Optional
 
 __maintainer__ = []
@@ -15,7 +16,7 @@ from typing import Callable, Union
 import numpy as np
 
 from aeon.classification.base import BaseClassifier
-from aeon.distances import get_distance_function
+from aeon.distances import get_distance_function, pairwise_distance
 
 WEIGHTS_SUPPORTED = ["uniform", "distance"]
 
@@ -85,9 +86,7 @@ class KNeighborsTimeSeriesClassifier(BaseClassifier):
         self.n_neighbors = n_neighbors
         self.n_jobs = n_jobs
 
-        self._distance_params = distance_params
-        if self._distance_params is None:
-            self._distance_params = {}
+        self._distance_params = distance_params or {}
 
         if weights not in WEIGHTS_SUPPORTED:
             raise ValueError(
@@ -218,6 +217,84 @@ class KNeighborsTimeSeriesClassifier(BaseClassifier):
             raise Exception(f"Invalid kNN weights: {self.weights}")
 
         return closest_idx, ws
+
+    def kneighbors(self, X=None, n_neighbors=None, return_distance=True):
+        """Find the K-neighbors of a point.
+
+        Returns indices of and distances to the neighbors of each point.
+
+        Parameters
+        ----------
+        X : 3D np.ndarray of shape = (n_cases, n_channels, n_timepoints) or list of
+        shape [n_cases] of 2D arrays shape (n_channels,n_timepoints_i)
+            The query point or points.
+            If not provided, neighbors of each indexed point are returned.
+            In this case, the query point is not considered its own neighbor.
+        n_neighbors : int, default=None
+            Number of neighbors required for each sample. The default is the value
+            passed to the constructor.
+        return_distance : bool, default=True
+            Whether or not to return the distances.
+
+        Returns
+        -------
+        neigh_dist : ndarray of shape (n_queries, n_neighbors)
+            Array representing the distances to points, only present if
+            return_distance=True.
+        neigh_ind : ndarray of shape (n_queries, n_neighbors)
+            Indices of the nearest points in the population matrix.
+        """
+        self._check_is_fitted()
+
+        if n_neighbors is None:
+            n_neighbors = self.n_neighbors
+        elif n_neighbors <= 0:
+            raise ValueError(f"Expected n_neighbors > 0. Got {n_neighbors}")
+        elif not isinstance(n_neighbors, numbers.Integral):
+            raise TypeError(
+                f"n_neighbors does not take {type(n_neighbors)} value, "
+                "enter integer value"
+            )
+
+        query_is_train = X is None
+        if query_is_train:
+            X = self.X_
+            n_neighbors += 1
+        else:
+            X = self._preprocess_collection(X, store_metadata=False)
+            self._check_shape(X)
+
+        # Compute pairwise distances between X and fit data
+        distances = pairwise_distance(
+            X,
+            self.X_ if not query_is_train else None,
+            method=self.distance,
+            **self._distance_params,
+        )
+
+        sample_range = np.arange(distances.shape[0])[:, None]
+        neigh_ind = np.argpartition(distances, n_neighbors - 1, axis=1)
+        neigh_ind = neigh_ind[:, :n_neighbors]
+        neigh_ind = neigh_ind[
+            sample_range, np.argsort(distances[sample_range, neigh_ind])
+        ]
+
+        if query_is_train:
+            neigh_ind = neigh_ind[:, 1:]
+
+        if return_distance:
+            if query_is_train:
+                neigh_dist = distances[sample_range, neigh_ind]
+                return neigh_dist, neigh_ind
+            return distances[sample_range, neigh_ind], neigh_ind
+
+        return neigh_ind
+
+    def _fit_setup(self, X, y):
+        # KNN can support if all labels are the same so always return False for single
+        # class problem so the fit will always run
+        X, y, _ = super()._fit_setup(X, y)
+        return X, y, False
 
     @classmethod
     def _get_test_params(

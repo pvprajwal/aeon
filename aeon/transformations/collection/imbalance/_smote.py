@@ -10,11 +10,12 @@ original authors:
 """
 
 from collections import OrderedDict
+from typing import Optional, Union
 
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
 from sklearn.utils import check_random_state
 
+from aeon.classification.distance_based import KNeighborsTimeSeriesClassifier
 from aeon.transformations.collection import BaseCollectionTransformer
 
 __maintainer__ = ["TonyBagnall"]
@@ -32,7 +33,7 @@ class SMOTE(BaseCollectionTransformer):
 
     Parameters
     ----------
-    k_neighbors : int, default=5
+    n_neighbors : int, default=5
         The number  of nearest neighbors used to define the neighborhood of samples
         to use to generate the synthetic time series.
         `~sklearn.neighbors.NearestNeighbors` instance will be fitted in this case.
@@ -59,14 +60,38 @@ class SMOTE(BaseCollectionTransformer):
         "requires_y": True,
     }
 
-    def __init__(self, k_neighbors=5, random_state=None):
+    def __init__(
+        self,
+        n_neighbors=5,
+        distance: Union[str, callable] = "euclidean",
+        distance_params: Optional[dict] = None,
+        weights: Union[str, callable] = "uniform",
+        n_jobs: int = 1,
+        random_state=None,
+    ):
         self.random_state = random_state
-        self.k_neighbors = k_neighbors
+        self.n_neighbors = n_neighbors
+        self.distance = distance
+        self.distance_params = distance_params
+        self.weights = weights
+        self.n_jobs = n_jobs
+
+        self._random_state = None
+        self._distance_params = distance_params or {}
+
+        self.nn_ = None
         super().__init__()
 
     def _fit(self, X, y=None):
         # set the additional_neighbor required by SMOTE
-        self.nn_ = NearestNeighbors(n_neighbors=self.k_neighbors + 1)
+        self._random_state = check_random_state(self.random_state)
+        self.nn_ = KNeighborsTimeSeriesClassifier(
+            n_neighbors=self.n_neighbors + 1,
+            distance=self.distance,
+            distance_params=self._distance_params,
+            weights=self.weights,
+            n_jobs=self.n_jobs,
+        )
 
         # generate sampling target by targeting all classes except the majority
         unique, counts = np.unique(y, return_counts=True)
@@ -93,8 +118,9 @@ class SMOTE(BaseCollectionTransformer):
                 continue
             target_class_indices = np.flatnonzero(y == class_sample)
             X_class = X[target_class_indices]
+            y_class = y[target_class_indices]
 
-            self.nn_.fit(X_class)
+            self.nn_.fit(X_class, y_class)
             nns = self.nn_.kneighbors(X_class, return_distance=False)[:, 1:]
             X_new, y_new = self._make_samples(
                 X_class, y.dtype, class_sample, X_class, nns, n_samples, 1.0
@@ -149,11 +175,12 @@ class SMOTE(BaseCollectionTransformer):
         y_new : ndarray of shape (n_samples_new,)
             Target values for synthetic samples.
         """
-        random_state = check_random_state(self.random_state)
-        samples_indices = random_state.randint(low=0, high=nn_num.size, size=n_samples)
+        samples_indices = self._random_state.randint(
+            low=0, high=nn_num.size, size=n_samples
+        )
 
         # np.newaxis for backwards compatability with random_state
-        steps = step_size * random_state.uniform(size=n_samples)[:, np.newaxis]
+        steps = step_size * self._random_state.uniform(size=n_samples)[:, np.newaxis]
         rows = np.floor_divide(samples_indices, nn_num.shape[1])
         cols = np.mod(samples_indices, nn_num.shape[1])
 
@@ -213,9 +240,8 @@ class SMOTE(BaseCollectionTransformer):
         """
         diffs = nn_data[nn_num[rows, cols]] - X[rows]
         if y is not None:  # only entering for BorderlineSMOTE-2
-            random_state = check_random_state(self.random_state)
             mask_pair_samples = y[nn_num[rows, cols]] != y_type
-            diffs[mask_pair_samples] *= random_state.uniform(
+            diffs[mask_pair_samples] *= self._random_state.uniform(
                 low=0.0, high=0.5, size=(mask_pair_samples.sum(), 1)
             )
         X_new = X[rows] + steps * diffs
