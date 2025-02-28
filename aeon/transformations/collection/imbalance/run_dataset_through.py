@@ -1,7 +1,6 @@
-import os
-from pathlib import Path
+"""Run a dataset through an imbalance transformation and save the results."""
 
-import numpy as np
+import os
 
 from aeon.datasets import load_from_ts_file
 from aeon.transformations.collection.imbalance import ADASYN, SMOTE, TSMOTE
@@ -108,7 +107,7 @@ if __name__ == "__main__":
     # Process each transformer
     for transformer_name, transformer in transformers.items():
         # Create output directory for this transformer
-        print(f"Processing {transformer_name}...")
+        print(f"Processing {transformer_name}...")  # noqa T201
         output_base_path = f"{PATH_TO_IMBALANCE_DATA}_{transformer_name}"
 
         # Iterate through all datasets in the input directory
@@ -119,7 +118,7 @@ if __name__ == "__main__":
             if not os.path.isdir(dataset_path):
                 continue
 
-            print(f"Processing {dataset_name} with {transformer_name}...")
+            print(f"Processing {dataset_name} with {transformer_name}...")  # noqa T201
 
             # Process both train and test splits
             for split in ["TRAIN", "TEST"]:
@@ -135,7 +134,7 @@ if __name__ == "__main__":
                             split,
                         )
                     except Exception as e:
-                        print(f"Error processing {input_path}: {str(e)}")
+                        print(f"Error processing {input_path}: {str(e)}")  # noqa T201
 
             X_train, y_train = load_from_ts_file(
                 f"{output_base_path}/{dataset_name}/{dataset_name}_TRAIN.ts"

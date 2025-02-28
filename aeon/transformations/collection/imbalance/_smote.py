@@ -83,7 +83,7 @@ class SMOTE(BaseCollectionTransformer):
         super().__init__()
 
     def _fit(self, X, y=None):
-        # set the additional_neighbor required by SMOTE
+        # set the additional_neihbor required by SMOTE
         self._random_state = check_random_state(self.random_state)
         self.nn_ = KNeighborsTimeSeriesClassifier(
             n_neighbors=self.n_neighbors + 1,

@@ -4,7 +4,6 @@ from typing import Optional, Union
 
 import numpy as np
 from sklearn import clone
-from sklearn.utils import check_random_state
 
 from aeon.transformations.collection.imbalance._smote import SMOTE
 
