@@ -69,6 +69,13 @@ def process_dataset(input_path, output_base_path, transformer, dataset_name, spl
     split : str
         Either 'TRAIN' or 'TEST'
     """
+    # Create output path
+    output_path = os.path.join(
+        output_base_path, dataset_name, f"{dataset_name}_{split}.ts"
+    )
+    if os.path.exists(output_path):
+        print("Output path already exists. Skipping dataset.")
+        return
     # Load data
     X, y = load_from_ts_file(input_path)
 
@@ -78,17 +85,12 @@ def process_dataset(input_path, output_base_path, transformer, dataset_name, spl
     else:
         X_res, y_res = X, y  # Don't transform test data
 
-    # Create output path
-    output_path = os.path.join(
-        output_base_path, dataset_name, f"{dataset_name}_{split}.ts"
-    )
-
     # Save transformed data
     save_to_ts_file(X_res, y_res, output_path, input_path)
 
 
 if __name__ == "__main__":
-    distance = "dtw"
+    distance = "euclidean"
 
     if distance == "dtw":
         distance_params = {"window": 0.2}
@@ -97,11 +99,19 @@ if __name__ == "__main__":
     else:
         distance_params = {}
 
+    n_jobs = 4
+
     # Define transformers
     transformers = {
-        "smote": SMOTE(distance=distance, distance_params=distance_params),
-        "adasyn": ADASYN(distance=distance, distance_params=distance_params),
-        "tsmote": TSMOTE(distance=distance, distance_params=distance_params),
+        "smote": SMOTE(
+            distance=distance, distance_params=distance_params, n_jobs=n_jobs
+        ),
+        "adasyn": ADASYN(
+            distance=distance, distance_params=distance_params, n_jobs=n_jobs
+        ),
+        "tsmote": TSMOTE(
+            distance=distance, distance_params=distance_params, n_jobs=n_jobs
+        ),
     }
 
     # Process each transformer
@@ -135,10 +145,12 @@ if __name__ == "__main__":
                         )
                     except Exception as e:
                         print(f"Error processing {input_path}: {str(e)}")  # noqa T201
-
-            X_train, y_train = load_from_ts_file(
-                f"{output_base_path}/{dataset_name}/{dataset_name}_TRAIN.ts"
-            )
-            X_test, y_test = load_from_ts_file(
-                f"{output_base_path}/{dataset_name}/{dataset_name}_TEST.ts"
-            )
+            try:
+                X_train, y_train = load_from_ts_file(
+                    f"{output_base_path}/{dataset_name}/{dataset_name}_TRAIN.ts"
+                )
+                X_test, y_test = load_from_ts_file(
+                    f"{output_base_path}/{dataset_name}/{dataset_name}_TEST.ts"
+                )
+            except Exception as e:
+                print(f"Error loading transformed data: {str(e)}")

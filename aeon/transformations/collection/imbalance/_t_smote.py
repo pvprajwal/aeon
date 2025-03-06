@@ -48,12 +48,14 @@ class TSMOTE(BaseCollectionTransformer):
         window_size: Optional[int] = None,
         distance: Union[str, callable] = "euclidean",
         distance_params: Optional[dict] = None,
+        n_jobs: int = 1,
     ):
         self.random_state = random_state
         self.spy_size = spy_size
         self.window_size = window_size
         self.distance = distance
         self.distance_params = distance_params
+        self.n_jobs = n_jobs
 
         self._random_state = None
         self._distance_params = distance_params or {}
@@ -91,6 +93,7 @@ class TSMOTE(BaseCollectionTransformer):
         self.classifier_ = KNeighborsTimeSeriesClassifier(
             distance=self.distance,
             distance_params=self._distance_params,
+            n_jobs=self.n_jobs,
         )
 
         return self
