@@ -4,6 +4,7 @@ import os
 
 from aeon.datasets import load_from_ts_file
 from aeon.transformations.collection.imbalance import ADASYN, SMOTE, TSMOTE
+from aeon.transformations.collection.imbalance._smote_alignment import ElasticSMOTE
 
 PATH_TO_IMBALANCE_DATA = "/Users/chrisholder/Documents/Research/datasets/imbalanced_9_1"
 
@@ -90,7 +91,7 @@ def process_dataset(input_path, output_base_path, transformer, dataset_name, spl
 
 
 if __name__ == "__main__":
-    distance = "euclidean"
+    distance = "msm"
 
     if distance == "dtw":
         distance_params = {"window": 0.2}
@@ -99,19 +100,22 @@ if __name__ == "__main__":
     else:
         distance_params = {}
 
-    n_jobs = 4
+    n_jobs = 10
 
     # Define transformers
     transformers = {
-        "smote": SMOTE(
+        # "smote": SMOTE(
+        #     distance=distance, distance_params=distance_params, n_jobs=n_jobs
+        # ),
+        # "adasyn": ADASYN(
+        #     distance=distance, distance_params=distance_params, n_jobs=n_jobs
+        # ),
+        # "tsmote": TSMOTE(
+        #     distance=distance, distance_params=distance_params, n_jobs=n_jobs
+        # ),
+        "elastic_smote": ElasticSMOTE(
             distance=distance, distance_params=distance_params, n_jobs=n_jobs
-        ),
-        "adasyn": ADASYN(
-            distance=distance, distance_params=distance_params, n_jobs=n_jobs
-        ),
-        "tsmote": TSMOTE(
-            distance=distance, distance_params=distance_params, n_jobs=n_jobs
-        ),
+        )
     }
 
     # Process each transformer
