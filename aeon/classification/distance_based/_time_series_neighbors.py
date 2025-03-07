@@ -16,7 +16,8 @@ from typing import Callable, Union
 import numpy as np
 
 from aeon.classification.base import BaseClassifier
-from aeon.distances import get_distance_function, pairwise_distance
+from aeon.distances import pairwise_distance
+from aeon.utils._threading import threaded
 
 WEIGHTS_SUPPORTED = ["uniform", "distance"]
 
@@ -47,11 +48,10 @@ class KNeighborsTimeSeriesClassifier(BaseClassifier):
         n_timepoints)`` as input and returns a float.
     distance_params : dict, default = None
         Dictionary for metric parameters for the case that distance is a str.
-    n_jobs : int, default = None
-        The number of parallel jobs to run for neighbors search.
-        ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
-        ``-1`` means using all processors.
-        for more details. Parameter for compatibility purposes, still unimplemented.
+    n_jobs : int, default=1
+        The number of jobs to run in parallel. If -1, then the number of jobs is set
+        to the number of CPU cores. If 1, then the function is executed in a single
+        thread. If greater than 1, then the function is executed in parallel.
 
     Examples
     --------
@@ -86,7 +86,9 @@ class KNeighborsTimeSeriesClassifier(BaseClassifier):
         self.n_neighbors = n_neighbors
         self.n_jobs = n_jobs
 
-        self._distance_params = distance_params or {}
+        self._distance_params = distance_params
+        if self._distance_params is None:
+            self._distance_params = {}
 
         if weights not in WEIGHTS_SUPPORTED:
             raise ValueError(
@@ -110,7 +112,6 @@ class KNeighborsTimeSeriesClassifier(BaseClassifier):
         y : array-like, shape = (n_cases)
             The class labels.
         """
-        self.metric_ = get_distance_function(method=self.distance)
         self.X_ = X
         self.classes_, self.y_ = np.unique(y, return_inverse=True)
         return self
@@ -135,7 +136,7 @@ class KNeighborsTimeSeriesClassifier(BaseClassifier):
         """
         preds = np.zeros((len(X), len(self.classes_)))
         for i in range(len(X)):
-            idx, weights = self._kneighbors(X[i])
+            idx, weights = self.kneighbors(X[i])
             for id, w in zip(idx, weights):
                 predicted_class = self.y_[id]
                 preds[i, predicted_class] += w
@@ -162,62 +163,10 @@ class KNeighborsTimeSeriesClassifier(BaseClassifier):
         """
         self._check_is_fitted()
 
-        preds = np.empty(len(X), dtype=self.classes_.dtype)
-        for i in range(len(X)):
-            scores = np.zeros(len(self.classes_))
-            idx, weights = self._kneighbors(X[i])
-            for id, w in zip(idx, weights):
-                predicted_class = self.y_[id]
-                scores[predicted_class] += w
+        indexes = self.kneighbors(X, return_distance=False)[:, 0]
+        return self.classes_[self.y_[indexes]]
 
-            preds[i] = self.classes_[np.argmax(scores)]
-
-        return preds
-
-    def _kneighbors(self, X):
-        """
-        Find the K-neighbors of a point.
-
-        Returns indices and weights of each point.
-
-        Parameters
-        ----------
-        X : np.ndarray
-            A single time series instance if shape = (n_channels, n_timepoints)
-
-        Returns
-        -------
-        ind : array
-            Indices of the nearest points in the population matrix.
-        ws : array
-            Array representing the weights of each neighbor.
-        """
-        distances = np.array(
-            [
-                self.metric_(X, self.X_[j], **self._distance_params)
-                for j in range(len(self.X_))
-            ]
-        )
-
-        # Find indices of k nearest neighbors using partitioning:
-        # [0..k-1], [k], [k+1..n-1]
-        # They might not be ordered within themselves,
-        # but it is not necessary and partitioning is
-        # O(n) while sorting is O(nlogn)
-        closest_idx = np.argpartition(distances, self.n_neighbors)
-        closest_idx = closest_idx[: self.n_neighbors]
-
-        if self.weights == "distance":
-            ws = distances[closest_idx]
-            # Using epsilon ~= 0 to avoid division by zero
-            ws = 1 / (ws + np.finfo(float).eps)
-        elif self.weights == "uniform":
-            ws = np.repeat(1.0, self.n_neighbors)
-        else:
-            raise Exception(f"Invalid kNN weights: {self.weights}")
-
-        return closest_idx, ws
-
+    @threaded
     def kneighbors(self, X=None, n_neighbors=None, return_distance=True):
         """Find the K-neighbors of a point.
 
@@ -245,7 +194,6 @@ class KNeighborsTimeSeriesClassifier(BaseClassifier):
             Indices of the nearest points in the population matrix.
         """
         self._check_is_fitted()
-
         if n_neighbors is None:
             n_neighbors = self.n_neighbors
         elif n_neighbors <= 0:
@@ -264,11 +212,11 @@ class KNeighborsTimeSeriesClassifier(BaseClassifier):
             X = self._preprocess_collection(X, store_metadata=False)
             self._check_shape(X)
 
-        # Compute pairwise distances between X and fit data
         distances = pairwise_distance(
             X,
             self.X_ if not query_is_train else None,
             method=self.distance,
+            n_jobs=self.n_jobs,
             **self._distance_params,
         )
 
@@ -289,12 +237,6 @@ class KNeighborsTimeSeriesClassifier(BaseClassifier):
             return distances[sample_range, neigh_ind], neigh_ind
 
         return neigh_ind
-
-    def _fit_setup(self, X, y):
-        # KNN can support if all labels are the same so always return False for single
-        # class problem so the fit will always run
-        X, y, _ = super()._fit_setup(X, y)
-        return X, y, False
 
     @classmethod
     def _get_test_params(
