@@ -1,14 +1,3 @@
-"""SMOTE over sampling algorithm.
-
-See more in imblearn.over_sampling.SMOTE
-original authors:
-#          Guillaume Lemaitre <g.lemaitre58@gmail.com>
-#          Fernando Nogueira
-#          Christos Aridas
-#          Dzianis Dudnik
-# License: MIT
-"""
-
 from collections import OrderedDict
 from typing import Optional, Union
 
@@ -20,7 +9,7 @@ from aeon.classification.distance_based import KNeighborsTimeSeriesClassifier
 from aeon.clustering.averaging._ba_utils import _get_alignment_path
 from aeon.transformations.collection import BaseCollectionTransformer
 
-__maintainer__ = ["TonyBagnall"]
+__maintainer__ = ["chrisholder"]
 __all__ = ["ElasticSMOTE"]
 
 from aeon.utils._threading import threaded
@@ -87,7 +76,6 @@ class ElasticSMOTE(BaseCollectionTransformer):
         super().__init__()
 
     def _fit(self, X, y=None):
-        # set the additional_neihbor required by SMOTE
         self._random_state = check_random_state(self.random_state)
         self.nn_ = KNeighborsTimeSeriesClassifier(
             n_neighbors=self.n_neighbors + 1,
@@ -134,7 +122,6 @@ class ElasticSMOTE(BaseCollectionTransformer):
                 nns,
                 n_samples,
                 1.0,
-                n_jobs=self.n_jobs,
             )
             X_resampled.append(X_new)
             y_resampled.append(y_new)
@@ -145,7 +132,7 @@ class ElasticSMOTE(BaseCollectionTransformer):
 
     @threaded
     def _make_samples(
-        self, X, y_dtype, y_type, nn_data, nn_num, n_samples, step_size=1.0, n_jobs=1
+        self, X, y_dtype, y_type, nn_data, nn_num, n_samples, step_size=1.0
     ):
         samples_indices = self._random_state.randint(
             low=0, high=nn_num.size, size=n_samples

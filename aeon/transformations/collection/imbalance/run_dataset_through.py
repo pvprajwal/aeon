@@ -4,7 +4,7 @@ import os
 
 from aeon.datasets import load_from_ts_file
 from aeon.transformations.collection.imbalance import ADASYN, SMOTE, TSMOTE
-from aeon.transformations.collection.imbalance._smote_alignment import ElasticSMOTE
+from aeon.transformations.collection.imbalance._elastic_smote import ElasticSMOTE
 
 PATH_TO_IMBALANCE_DATA = "/Users/chrisholder/Documents/Research/datasets/imbalanced_9_1"
 
@@ -91,7 +91,7 @@ def process_dataset(input_path, output_base_path, transformer, dataset_name, spl
 
 
 if __name__ == "__main__":
-    distance = "msm"
+    distance = "dtw"
 
     if distance == "dtw":
         distance_params = {"window": 0.2}

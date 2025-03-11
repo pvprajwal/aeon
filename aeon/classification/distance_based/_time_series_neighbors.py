@@ -214,7 +214,7 @@ class KNeighborsTimeSeriesClassifier(BaseClassifier):
 
         distances = pairwise_distance(
             X,
-            self.X_ if not query_is_train else None,
+            self.X_ if (not query_is_train and hasattr(self, "X_")) else None,
             method=self.distance,
             n_jobs=self.n_jobs,
             **self._distance_params,
