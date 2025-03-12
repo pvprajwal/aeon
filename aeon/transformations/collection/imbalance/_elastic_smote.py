@@ -207,9 +207,9 @@ def _generate_samples(
             transformed_x,
             transformed_y,
         )
-        num_of_alignments = np.zeros_like(curr_ts, dtype=np.int32)
+        num_of_alignments = np.ones_like(new_ts, dtype=np.int32)
         for k, l in alignment:
-            new_ts[l] += curr_ts[k] - nn_ts[l]
+            new_ts[l] += curr_ts[k] + nn_ts[l]
             num_of_alignments[l] += 1
 
         new_ts = new_ts / num_of_alignments
@@ -217,6 +217,69 @@ def _generate_samples(
 
     return X_new
 
+
+# Swapped code in case it is better in results.
+# @njit(cache=True, fastmath=True, parallel=True)
+# def _generate_samples(
+#     X,
+#     nn_data,
+#     nn_num,
+#     rows,
+#     cols,
+#     steps,
+#     distance,
+#     weights: Optional[np.ndarray] = None,
+#     window: Union[float, None] = None,
+#     g: float = 0.0,
+#     epsilon: Union[float, None] = None,
+#     nu: float = 0.001,
+#     lmbda: float = 1.0,
+#     independent: bool = True,
+#     c: float = 1.0,
+#     descriptor: str = "identity",
+#     reach: int = 15,
+#     warp_penalty: float = 1.0,
+#     transformation_precomputed: bool = False,
+#     transformed_x: Optional[np.ndarray] = None,
+#     transformed_y: Optional[np.ndarray] = None,
+# ):
+#     X_new = np.zeros((len(rows), X.shape[1]), dtype=X.dtype)
+#
+#     for count in prange(len(rows)):
+#         i = rows[count]
+#         j = cols[count]
+#         curr_ts = X[i]
+#         nn_ts = nn_data[nn_num[i, j]]
+#         new_ts = curr_ts.copy()
+#
+#         alignment, _ = _get_alignment_path(
+#             nn_ts,
+#             curr_ts,
+#             distance,
+#             window,
+#             g,
+#             epsilon,
+#             nu,
+#             lmbda,
+#             independent,
+#             c,
+#             descriptor,
+#             reach,
+#             warp_penalty,
+#             transformation_precomputed,
+#             transformed_x,
+#             transformed_y,
+#         )
+#         num_of_alignments = np.ones_like(new_ts, dtype=np.int32)
+#         for k, l in alignment:
+#             new_ts[k] += curr_ts[k] + nn_ts[l]
+#             num_of_alignments[k] += 1
+#
+#         new_ts = new_ts / num_of_alignments
+#         X_new[count] = new_ts * steps[count]
+#
+#     return X_new
+#
 
 if __name__ == "__main__":
     from aeon.testing.data_generation import make_example_3d_numpy
