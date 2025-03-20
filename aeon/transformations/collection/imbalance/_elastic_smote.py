@@ -2,7 +2,7 @@ from collections import OrderedDict
 from typing import Optional, Union
 
 import numpy as np
-from numba import njit, prange
+from numba import prange
 from sklearn.utils import check_random_state
 
 from aeon.classification.distance_based import KNeighborsTimeSeriesClassifier
@@ -156,7 +156,7 @@ class ElasticSMOTE(BaseCollectionTransformer):
         return X_new, y_new
 
 
-@njit(cache=True, fastmath=True, parallel=True)
+# @njit(cache=True, fastmath=True, parallel=True)
 def _generate_samples(
     X,
     nn_data,
@@ -218,7 +218,6 @@ def _generate_samples(
     return X_new
 
 
-# Swapped code in case it is better in results.
 # @njit(cache=True, fastmath=True, parallel=True)
 # def _generate_samples(
 #     X,
@@ -227,6 +226,7 @@ def _generate_samples(
 #     rows,
 #     cols,
 #     steps,
+#     random_state,
 #     distance,
 #     weights: Optional[np.ndarray] = None,
 #     window: Union[float, None] = None,
@@ -270,16 +270,23 @@ def _generate_samples(
 #             transformed_x,
 #             transformed_y,
 #         )
-#         num_of_alignments = np.ones_like(new_ts, dtype=np.int32)
+#         path_list = [[] for _ in range(len(curr_ts))]
 #         for k, l in alignment:
-#             new_ts[k] += curr_ts[k] + nn_ts[l]
-#             num_of_alignments[k] += 1
+#             path_list[k].append(l)
 #
-#         new_ts = new_ts / num_of_alignments
-#         X_new[count] = new_ts * steps[count]
+#         # num_of_alignments = np.zeros_like(curr_ts, dtype=np.int32)
+#         empty_of_array = np.zeros_like(curr_ts, dtype=type(curr_ts[0]))
+#
+#         for k, l in enumerate(path_list):
+#             if len(l) == 0:
+#                 raise ValueError("No alignment found")
+#             key = random_state.choice(l)
+#             empty_of_array[k] = curr_ts[k] - nn_ts[key]
+#
+#         X_new[count]  = new_ts + steps[count] * empty_of_array #/ num_of_alignments
 #
 #     return X_new
-#
+
 
 if __name__ == "__main__":
     from aeon.testing.data_generation import make_example_3d_numpy
