@@ -268,6 +268,64 @@ def z_normalise_series_2d(X: np.ndarray) -> np.ndarray:
 
 
 @njit(fastmath=True, cache=True)
+def min_max_normalise_series(X: np.ndarray) -> np.ndarray:
+    """Numba series normalization function for a 2d numpy array.
+
+    Parameters
+    ----------
+    X : 2d numpy array
+        A 2d numpy array of values
+
+    Returns
+    -------
+    arr : 2d numpy array
+        The normalised series
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from aeon.utils.numba.general import z_normalise_series_2d
+    >>> X = np.array([[1, 2, 2, 3, 3, 3, 4, 4, 4, 4], [5, 6, 6, 7, 7, 7, 8, 8, 8, 8]])
+    >>> X_norm = z_normalise_series_2d(X)
+    """
+    _min = np.min(X)
+    _max = np.max(X)
+    denom = _max - _min
+    if denom > AEON_NUMBA_STD_THRESHOLD:
+        arr = (X - _min) / denom
+    else:
+        arr = np.zeros(X.shape[0])
+    return arr
+
+
+@njit(fastmath=True, cache=True)
+def min_max_normalise_series_2d(X: np.ndarray) -> np.ndarray:
+    """Numba series normalization function for a 2d numpy array.
+
+    Parameters
+    ----------
+    X : 2d numpy array
+        A 2d numpy array of values
+
+    Returns
+    -------
+    arr : 2d numpy array
+        The normalised series
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from aeon.utils.numba.general import z_normalise_series_2d
+    >>> X = np.array([[1, 2, 2, 3, 3, 3, 4, 4, 4, 4], [5, 6, 6, 7, 7, 7, 8, 8, 8, 8]])
+    >>> X_norm = z_normalise_series_2d(X)
+    """
+    arr = np.zeros(X.shape)
+    for i in range(X.shape[0]):
+        arr[i] = min_max_normalise_series(X[i])
+    return arr
+
+
+@njit(fastmath=True, cache=True)
 def z_normalise_series_2d_with_mean_std(
     X: np.ndarray, series_mean: np.ndarray, series_std: np.ndarray
 ) -> np.ndarray:

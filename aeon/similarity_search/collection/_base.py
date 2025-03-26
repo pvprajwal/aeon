@@ -55,6 +55,9 @@ class BaseCollectionSimilaritySearch(BaseCollectionEstimator, BaseSimilaritySear
         # Store minimum number of n_timepoints for unequal length collections
         self.n_channels_ = X[0].shape[0]
         self.n_cases_ = len(X)
+        n_timestamps = [X[i].shape[1] for i in range(len(X))]
+        self.min_n_timestamps_ = np.min(n_timestamps)
+        self.max_n_timestamps_ = np.max(n_timestamps)
         self._fit(X, y=y)
         self.is_fitted = True
         return self
